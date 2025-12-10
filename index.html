@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Roadtrip MVP</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top-bar">
+      <h1>Roadtrip MVP</h1>
+      <div class="stats" id="statsBar">
+        <!-- динамически -->
+      </div>
+    </header>
+
+    <main id="screenContainer">
+      <!-- MENU SCREEN -->
+      <section id="screen-menu" class="screen">
+        <h2>Меню</h2>
+        <p class="screen-desc">
+          Небольшой роадтрип по трассе с ресурсами, остановками и автостопщиками.
+        </p>
+        <div class="card big-card">
+          <h3>Как играть</h3>
+          <p>На остановках:</p>
+          <ul>
+            <li>WASD / стрелки — ходьба по хабу</li>
+            <li>E — взаимодействие с зданиями</li>
+            <li>M — открыть карту маршрута</li>
+          </ul>
+          <p>На карте:</p>
+          <ul>
+            <li>Клик по достижимой точке — выбор</li>
+            <li>Кнопка «Поехать к выбранной точке» — старт сегмента</li>
+          </ul>
+          <p>На дороге:</p>
+          <ul>
+            <li>A/D или стрелки влево/вправо — смещение по полосе</li>
+            <li>События автостопщиков появляются по пути</li>
+          </ul>
+        </div>
+        <button id="btnMenuStart" class="primary">Начать поездку</button>
+      </section>
+
+      <!-- STOP / HUB SCREEN: полноэкранный -->
+      <section id="screen-stop" class="screen screen-stop hidden">
+        <canvas id="stopCanvas"></canvas>
+        <div class="stop-bottom-bar">
+          <div id="stopHint" class="hint"></div>
+          <div class="stop-controls">
+            Управление: WASD / стрелки — ходьба • E — взаимодействие • M — карта
+          </div>
+        </div>
+      </section>
+
+      <!-- MAP SCREEN -->
+      <section id="screen-map" class="screen hidden">
+        <h2>Карта маршрута</h2>
+        <p class="screen-desc">
+          Точки маршрута соединены линиями. Выбери любую следующую точку, до которой хватает топлива.
+        </p>
+        <canvas id="mapCanvas" width="800" height="450"></canvas>
+        <div id="mapInfo" class="map-info"></div>
+        <button id="btnStartSegment" class="primary">
+          Поехать к выбранной точке
+        </button>
+        <button id="btnBackToStopFromMap">
+          Вернуться на остановку
+        </button>
+      </section>
+
+      <!-- ROAD SCREEN -->
+      <section id="screen-road" class="screen hidden">
+        <h2>Дорога</h2>
+        <p class="screen-desc" id="roadStatus">
+          Вы выехали на маршрут.
+        </p>
+
+        <canvas id="roadCanvas" width="800" height="450"></canvas>
+        <p class="screen-desc small">
+          Управление: A/D или стрелки влево/вправо — смещение по полосе. Когда проезжаешь мимо автостопщика или точки интереса, машина замедляется и вылезает событие.
+        </p>
+
+        <div class="card">
+          <h3>Событие</h3>
+          <div id="eventContainer">
+            <!-- сюда рендерятся события / автостопщики -->
+          </div>
+        </div>
+
+        <button id="btnRoadContinue" class="primary">Продолжить поездку</button>
+      </section>
+
+      <!-- GAME OVER / FINISH -->
+      <section id="screen-end" class="screen hidden">
+        <h2 id="endTitle">Конец</h2>
+        <p id="endDescription"></p>
+        <button id="btnRestart">Начать заново</button>
+      </section>
+    </main>
+  </div>
+
+  <!-- Порядок важен: сначала утилиты и данные, потом сцены, потом входная точка -->
+  <script src="game-utils.js"></script>
+  <script src="game-data.js"></script>
+  <script src="game-sprites.js"></script>
+  <script src="game-state.js"></script>
+  <script src="game-canvas.js"></script>
+  <script src="scene-stop.js"></script>
+  <script src="scene-map.js"></script>
+  <script src="scene-road.js"></script>
+  <script src="screens-core.js"></script>
+  <script src="scene-menu.js"></script>
+  <script src="scene-end.js"></script>
+  <script src="input.js"></script>
+  <script src="game-main.js"></script>
+</body>
+</html>

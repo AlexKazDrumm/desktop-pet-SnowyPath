@@ -1,0 +1,285 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #18181b;
+  color: #e5e7eb;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.top-bar {
+  background: #111827;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #374151;
+}
+
+.top-bar h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.stats {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.stat-value {
+  font-weight: 600;
+}
+
+main {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Базовый экран */
+.screen {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#screen-map {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#mapCanvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.screen-desc {
+  color: #9ca3af;
+  margin-bottom: 16px;
+}
+
+.screen-desc.small {
+  font-size: 12px;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: #020617;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  padding: 12px;
+}
+
+.big-card {
+  margin-top: 8px;
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+h3 {
+  margin-top: 0;
+  margin-bottom: 6px;
+  font-size: 16px;
+}
+
+p {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+button {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #e5e7eb;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+input[type="number"] {
+  width: 80px;
+  margin-left: 4px;
+  padding: 3px 4px;
+  background: #020617;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  color: #e5e7eb;
+  font: inherit;
+}
+
+/* Карта сегментов (старый список, если понадобится) */
+.segments-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.segment-card {
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+  padding: 8px;
+  background: #020617;
+  font-size: 13px;
+}
+
+.segment-card.current {
+  border-color: #22c55e;
+}
+
+.segment-card.completed {
+  border-style: dashed;
+  border-color: #9ca3af;
+  opacity: 0.7;
+}
+
+.segment-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Canvas-ы для топ-даун геймплея */
+.screen canvas {
+  display: block;
+  margin: 0 auto 12px auto;
+  background: #020617;
+  border-radius: 8px;
+  border: 1px solid #374151;
+}
+
+#eventContainer {
+  min-height: 80px;
+}
+
+.event-text {
+  margin-bottom: 8px;
+}
+
+.event-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.event-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 9999px;
+  border: 1px solid #4b5563;
+  margin-right: 4px;
+  color: #9ca3af;
+}
+
+#endTitle {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+#endDescription {
+  color: #d1d5db;
+  margin-bottom: 16px;
+}
+
+.hint {
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.map-info {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+/* -------- Полноэкранный экран остановки -------- */
+
+.screen-stop {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-stop canvas {
+  flex: 1;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+
+.stop-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #020617;
+  border-top: 1px solid #374151;
+  font-size: 13px;
+}
+
+.stop-controls {
+  color: #9ca3af;
+}
+
+.stop-bottom-bar .hint {
+  margin: 0;
+}
