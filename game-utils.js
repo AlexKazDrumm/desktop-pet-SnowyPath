@@ -13,6 +13,34 @@
  */
 
 /**
+ * Идентификаторы играбых персонажей
+ * @typedef {'tourist'|'worker'|'forester'|'mechanic'} CharacterId
+ */
+
+/**
+ * @typedef {{ id:string, name:string, iconKey:string, description:string }} InventoryItem
+ */
+
+/**
+ * @typedef {{
+ *   id: CharacterId,
+ *   name: string,
+ *   role: string,
+ *   description: string,
+ *   avatarKey: string,
+ *   spritePrefix: string,
+ *   hungerLossMultiplier: number,
+ *   fatigueLossMultiplier: number,
+ *   repairChance: number,
+ *   baseFuel: number,
+ *   baseMoney: number,
+ *   baseHunger: number,
+ *   baseFatigue: number,
+ *   inventory: InventoryItem[]
+ * }} CharacterConfig
+ */
+
+/**
  * Быстрый доступ к элементу по id
  * @param {string} id
  * @returns {HTMLElement|null}
@@ -41,3 +69,4 @@ function randInt(a, b) {
   const max = Math.max(a, b);
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+

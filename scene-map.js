@@ -153,7 +153,7 @@ function planTravelAndStart() {
     return;
   }
 
-  // Суммарные потери голода/бодрости
+  // Суммарные базовые потери голода/бодрости
   let totalHungerLoss = 0;
   let totalFatigueLoss = 0;
   for (let segIdx = from; segIdx < to; segIdx++) {
@@ -162,11 +162,18 @@ function planTravelAndStart() {
     totalFatigueLoss += seg.fatigueLoss;
   }
 
+  const char =
+    state.characterConfig ||
+    getCharacterById(state.characterId || selectedCharacterId);
+
+  const hungerLoss = totalHungerLoss * char.hungerLossMultiplier;
+  const fatigueLoss = totalFatigueLoss * char.fatigueLossMultiplier;
+
   // Сразу применяем потери при выезде
   adjustResources({
     fuel: -dist,
-    hunger: -totalHungerLoss,
-    fatigue: -totalFatigueLoss
+    hunger: -hungerLoss,
+    fatigue: -fatigueLoss
   });
 
   if (state.fuel < 0) {
@@ -210,3 +217,4 @@ function planTravelAndStart() {
 
   setScreen("screen-road");
 }
+

@@ -16,6 +16,17 @@ function setupInput() {
       return; // дальше этот keydown можно не обрабатывать
     }
 
+    if (e.code === "KeyI") {
+      // Тоггл инвентаря в хабе
+      if (state.mode === "stop" && state.ui) {
+        state.ui.inventoryOpen = !state.ui.inventoryOpen;
+        if (typeof renderStopUI === "function") {
+          renderStopUI();
+        }
+      }
+      return;
+    }
+
     if (e.code === "KeyE") {
       if (state.mode === "stop") {
         handleHubInteract();
@@ -51,7 +62,19 @@ function setupInput() {
     };
   }
 
+  const btnToggleInventory = qid("btnToggleInventory");
+  if (btnToggleInventory) {
+    btnToggleInventory.onclick = () => {
+      if (!state.ui) return;
+      state.ui.inventoryOpen = !state.ui.inventoryOpen;
+      if (typeof renderStopUI === "function") {
+        renderStopUI();
+      }
+    };
+  }
+
   if (mapCanvas) {
     mapCanvas.addEventListener("click", handleMapClick);
   }
 }
+

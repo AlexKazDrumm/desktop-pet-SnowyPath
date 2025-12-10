@@ -101,3 +101,110 @@ const cumulativeDistances = (() => {
   }
   return arr;
 })();
+
+/** @type {CharacterConfig[]} */
+const characters = [
+  {
+    id: "tourist",
+    name: "Турист",
+    role: "Хочет объехать весь мир",
+    description: "Лёгкий на подъём, но быстро устаёт без нормального сна.",
+    avatarKey: "avatar_tourist",
+    spritePrefix: "char_tourist",
+    hungerLossMultiplier: 1.0,
+    fatigueLossMultiplier: 1.1,
+    repairChance: 0.15,
+    baseFuel: 60,
+    baseMoney: 40,
+    baseHunger: 80,
+    baseFatigue: 80,
+    inventory: [
+      {
+        id: "map",
+        name: "Карта",
+        iconKey: "item_map",
+        description: "Старая дорожная карта с пометками маршрутов."
+      }
+    ]
+  },
+  {
+    id: "worker",
+    name: "Вахтовик",
+    role: "Едет на северную станцию",
+    description: "Привык работать сменами, медленнее выгорает по бодрости.",
+    avatarKey: "avatar_worker",
+    spritePrefix: "char_worker",
+    hungerLossMultiplier: 1.1,
+    fatigueLossMultiplier: 0.8,
+    repairChance: 0.25,
+    baseFuel: 70,
+    baseMoney: 55,
+    baseHunger: 80,
+    baseFatigue: 90,
+    inventory: [
+      {
+        id: "canister",
+        name: "Канистра",
+        iconKey: "item_canister",
+        description: "Пластиковая канистра с запасом топлива."
+      }
+    ]
+  },
+  {
+    id: "forester",
+    name: "Лесник",
+    role: "Сибирский лесник",
+    description: "Привык к полевым условиям, медленнее голодает.",
+    avatarKey: "avatar_forester",
+    spritePrefix: "char_forester",
+    hungerLossMultiplier: 0.8,
+    fatigueLossMultiplier: 1.0,
+    repairChance: 0.2,
+    baseFuel: 55,
+    baseMoney: 35,
+    baseHunger: 90,
+    baseFatigue: 85,
+    inventory: [
+      {
+        id: "axe",
+        name: "Топор",
+        iconKey: "item_axe",
+        description: "Тяжёлый рабочий топор. Полезен в глуши."
+      }
+    ]
+  },
+  {
+    id: "mechanic",
+    name: "Автомеханик",
+    role: "Едет на подработку",
+    description: "Лучше всех понимает технику, есть шанс починить машину.",
+    avatarKey: "avatar_mechanic",
+    spritePrefix: "char_mechanic",
+    hungerLossMultiplier: 1.0,
+    fatigueLossMultiplier: 1.0,
+    repairChance: 0.7,
+    baseFuel: 60,
+    baseMoney: 45,
+    baseHunger: 80,
+    baseFatigue: 80,
+    inventory: [
+      {
+        id: "pistol",
+        name: "Пистолет",
+        iconKey: "item_pistol",
+        description: "Лицензированное оружие самообороны."
+      }
+    ]
+  }
+];
+
+/**
+ * Получить конфиг персонажа по id
+ * @param {CharacterId} id
+ * @returns {CharacterConfig}
+ */
+function getCharacterById(id) {
+  const found = characters.find((c) => c.id === id);
+  return found || characters[0];
+}
+

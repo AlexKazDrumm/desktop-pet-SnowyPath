@@ -21,6 +21,72 @@
         <p class="screen-desc">
           Небольшой роадтрип по трассе с ресурсами, остановками и автостопщиками.
         </p>
+
+        <div class="character-select">
+          <h3>Выберите персонажа</h3>
+          <div class="character-cards" id="characterCards">
+            <button
+              id="character-card-tourist"
+              class="character-card"
+              type="button"
+              data-char-id="tourist"
+            >
+              <div class="character-avatar">
+                <img id="charCardAvatar-tourist" alt="Турист" />
+              </div>
+              <div class="character-info">
+                <div class="character-name">Турист</div>
+                <div class="character-role">Хочет объехать весь мир</div>
+              </div>
+            </button>
+
+            <button
+              id="character-card-worker"
+              class="character-card"
+              type="button"
+              data-char-id="worker"
+            >
+              <div class="character-avatar">
+                <img id="charCardAvatar-worker" alt="Вахтовик" />
+              </div>
+              <div class="character-info">
+                <div class="character-name">Вахтовик</div>
+                <div class="character-role">Едет на северную станцию</div>
+              </div>
+            </button>
+
+            <button
+              id="character-card-forester"
+              class="character-card"
+              type="button"
+              data-char-id="forester"
+            >
+              <div class="character-avatar">
+                <img id="charCardAvatar-forester" alt="Лесник" />
+              </div>
+              <div class="character-info">
+                <div class="character-name">Лесник</div>
+                <div class="character-role">Сибирский лесник</div>
+              </div>
+            </button>
+
+            <button
+              id="character-card-mechanic"
+              class="character-card"
+              type="button"
+              data-char-id="mechanic"
+            >
+              <div class="character-avatar">
+                <img id="charCardAvatar-mechanic" alt="Автомеханик" />
+              </div>
+              <div class="character-info">
+                <div class="character-name">Автомеханик</div>
+                <div class="character-role">Едет на подработку</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <div class="card big-card">
           <h3>Как играть</h3>
           <p>На остановках:</p>
@@ -28,6 +94,7 @@
             <li>WASD / стрелки — ходьба по хабу</li>
             <li>E — взаимодействие с зданиями</li>
             <li>M — открыть карту маршрута</li>
+            <li>I — открыть/закрыть инвентарь (в хабе)</li>
           </ul>
           <p>На карте:</p>
           <ul>
@@ -47,9 +114,39 @@
       <section id="screen-stop" class="screen screen-stop hidden">
         <canvas id="stopCanvas"></canvas>
         <div class="stop-bottom-bar">
-          <div id="stopHint" class="hint"></div>
-          <div class="stop-controls">
-            Управление: WASD / стрелки — ходьба • E — взаимодействие • M — карта
+          <div class="stop-bottom-left">
+            <div id="stopHint" class="hint"></div>
+          </div>
+
+          <div class="stop-bottom-center">
+            <div id="inventoryWrapper" class="inventory-wrapper">
+              <button
+                id="btnToggleInventory"
+                class="inventory-toggle"
+                type="button"
+              >
+                Инвентарь (I) ▾
+              </button>
+              <div id="inventoryPanel" class="inventory-panel">
+                <!-- слоты инвентаря -->
+              </div>
+            </div>
+          </div>
+
+          <div class="stop-bottom-right">
+            <div id="stopPlayerPanel" class="stop-player-panel">
+              <div class="player-avatar-wrap">
+                <img
+                  id="playerAvatar"
+                  class="player-avatar"
+                  alt="Персонаж"
+                />
+              </div>
+              <div id="stopStats" class="stop-stats"></div>
+            </div>
+            <div class="stop-controls">
+              Управление: WASD / стрелки — ходьба • E — взаимодействие • M — карта • I — инвентарь
+            </div>
           </div>
         </div>
       </section>
@@ -117,3 +214,4 @@
   <script src="game-main.js"></script>
 </body>
 </html>
+

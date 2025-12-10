@@ -24,6 +24,11 @@ function renderStats() {
   addStat("Деньги", state.money.toFixed(0) + "₽");
   addStat("Сытость", state.hunger.toFixed(0));
   addStat("Бодрость", state.fatigue.toFixed(0));
+
+  // Обновляем панель персонажа/инвентаря в хабе
+  if (typeof renderStopUI === "function") {
+    renderStopUI();
+  }
 }
 
 /**
@@ -61,10 +66,120 @@ function setScreen(screenId) {
 
   const statsBar = qid("statsBar");
   if (statsBar) {
-    statsBar.classList.toggle("hidden", screenId === "screen-menu");
+    // В меню и в хабе верхняя статистика скрыта — она уехала в нижнюю панель
+    statsBar.classList.toggle(
+      "hidden",
+      screenId === "screen-menu" || screenId === "screen-stop"
+    );
   }
 
   renderStats();
+}
+
+/**
+ * Рендер нижней панели хаба: аватар, статы, инвентарь
+ */
+function renderStopUI() {
+  const playerPanel = qid("stopPlayerPanel");
+  const statsContainer = qid("stopStats");
+  const avatarImg = /** @type {HTMLImageElement|null} */ (qid("playerAvatar"));
+  const inventoryWrapper = qid("inventoryWrapper");
+  const inventoryPanel = qid("inventoryPanel");
+  const btnToggleInventory = qid("btnToggleInventory");
+
+  if (state.mode !== "stop") {
+    if (playerPanel) playerPanel.classList.add("hidden");
+    if (inventoryWrapper) inventoryWrapper.classList.add("hidden");
+    return;
+  }
+
+  if (playerPanel) playerPanel.classList.remove("hidden");
+  if (inventoryWrapper) inventoryWrapper.classList.remove("hidden");
+
+  const char =
+    state.characterConfig ||
+    getCharacterById(state.characterId || selectedCharacterId);
+
+  // Аватар
+  if (avatarImg) {
+    const sprite = sprites[char.avatarKey];
+    if (sprite) {
+      avatarImg.src = sprite.src;
+    } else {
+      avatarImg.removeAttribute("src");
+    }
+    avatarImg.alt = char.name;
+  }
+
+  // Локальная панель статов
+  if (statsContainer) {
+    statsContainer.innerHTML = "";
+    const addRow = (label, value) => {
+      const row = document.createElement("div");
+      row.className = "stop-stat-row";
+      const l = document.createElement("span");
+      l.className = "stop-stat-label";
+      l.textContent = label;
+      const v = document.createElement("span");
+      v.className = "stop-stat-value";
+      v.textContent = value;
+      row.appendChild(l);
+      row.appendChild(v);
+      statsContainer.appendChild(row);
+    };
+
+    addRow("Точка", `${state.currentPointIndex + 1} / ${segments.length + 1}`);
+    addRow("Топливо", state.fuel.toFixed(0));
+    addRow("Деньги", state.money.toFixed(0) + "₽");
+    addRow("Сытость", state.hunger.toFixed(0));
+    addRow("Бодрость", state.fatigue.toFixed(0));
+  }
+
+  // Инвентарь
+  if (inventoryWrapper && state.ui) {
+    inventoryWrapper.classList.toggle("inventory-collapsed", !state.ui.inventoryOpen);
+  }
+  if (btnToggleInventory && state.ui) {
+    btnToggleInventory.textContent = state.ui.inventoryOpen
+      ? "Инвентарь (I) ▾"
+      : "Инвентарь (I) ▸";
+  }
+
+  if (inventoryPanel) {
+    inventoryPanel.innerHTML = "";
+    const items = state.inventory || [];
+
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "inventory-empty";
+      empty.textContent = "Инвентарь пуст.";
+      inventoryPanel.appendChild(empty);
+    } else {
+      items.forEach((item) => {
+        const cell = document.createElement("div");
+        cell.className = "inventory-item";
+
+        const iconWrap = document.createElement("div");
+        iconWrap.className = "inventory-item-icon";
+        const img = document.createElement("img");
+        const sprite = sprites[item.iconKey];
+        if (sprite) {
+          img.src = sprite.src;
+        }
+        img.alt = item.name;
+        iconWrap.appendChild(img);
+
+        const label = document.createElement("div");
+        label.className = "inventory-item-label";
+        label.textContent = item.name;
+
+        cell.title = item.description || item.name;
+        cell.appendChild(iconWrap);
+        cell.appendChild(label);
+        inventoryPanel.appendChild(cell);
+      });
+    }
+  }
 }
 
 function checkFailConditions() {
@@ -103,3 +218,4 @@ function endSuccess() {
     "Несмотря на рискованных попутчиков и нехватку ресурсов, вы добрались до конца маршрута.";
   setScreen("screen-end");
 }
+

@@ -1,15 +1,46 @@
 // game-state.js
 
+/** @type {CharacterId} */
+let selectedCharacterId = "tourist";
+
+/**
+ * Установить выбранного персонажа из меню
+ * @param {CharacterId} id
+ */
+function setSelectedCharacter(id) {
+  selectedCharacterId = id;
+}
+
+/**
+ * Текущий выбранный конфиг персонажа
+ * @returns {CharacterConfig}
+ */
+function getSelectedCharacterConfig() {
+  return getCharacterById(selectedCharacterId);
+}
+
 /**
  * Начальное состояние игры
  */
 function createInitialState() {
+  const char = getSelectedCharacterConfig();
+
   return {
+    // Персонаж
+    characterId: char.id,
+    characterName: char.name,
+    characterRole: char.role,
+    characterConfig: char,
+
+    // Маршрут
     currentPointIndex: 0, // 0..mapPoints.length-1
-    fuel: 60,
-    money: 40,
-    hunger: 80,
-    fatigue: 80,
+
+    // Ресурсы
+    fuel: char.baseFuel,
+    money: char.baseMoney,
+    hunger: char.baseHunger,
+    fatigue: char.baseFatigue,
+
     /** @type {'menu'|'stop'|'map'|'road'|'end'} */
     mode: "stop",
     alive: true,
@@ -47,7 +78,22 @@ function createInitialState() {
     },
 
     /** @type {Hitchhiker|null} */
-    currentHitchhiker: null
+    currentHitchhiker: null,
+
+    // Инвентарь персонажа (пока предметы без логики)
+    /** @type {InventoryItem[]} */
+    inventory: char.inventory.slice(),
+
+    // UI-флаги
+    ui: {
+      inventoryOpen: true
+    },
+
+    // Анимация персонажа в хабе
+    playerAnim: {
+      frameIndex: 0,
+      timer: 0
+    }
   };
 }
 
@@ -65,6 +111,11 @@ function adjustResources({ fuel = 0, money = 0, hunger = 0, fatigue = 0 }) {
   state.money += money;
   state.hunger = clamp(state.hunger + hunger, 0, 100);
   state.fatigue = clamp(state.fatigue + fatigue, 0, 100);
+
+  // Обновляем UI ресурсов
+  if (typeof renderStats === "function") {
+    renderStats();
+  }
 }
 
 /**
@@ -76,3 +127,4 @@ function distanceFromToPoints(fromPointIndex, toPointIndex) {
   if (toPointIndex < fromPointIndex) return 0;
   return cumulativeDistances[toPointIndex] - cumulativeDistances[fromPointIndex];
 }
+
