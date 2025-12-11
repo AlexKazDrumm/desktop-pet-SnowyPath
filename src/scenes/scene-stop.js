@@ -19,8 +19,18 @@
 
 /**
  * @typedef {{
+ *   relX: number;
+ *   relY: number;
+ *   relW: number;
+ *   relH: number;
+ * }} HubCarConfig
+ */
+
+/**
+ * @typedef {{
  *   pointIndex: number;
  *   backgroundKey?: string; // фон хаба
+ *   car?: HubCarConfig;     // позиция машины игрока
  *   buildings: HubBuildingConfig[];
  * }} HubConfig
  */
@@ -41,6 +51,80 @@ const poiSpriteDefaults = {
   hotel: "hubHotel",
   work: "hubWork"
 };
+
+/**
+ * Реальные координаты машины на хабе
+ * @returns {null | {
+ *   x: number;
+ *   y: number;
+ *   w: number;
+ *   h: number;
+ *   interactX: number;
+ *   interactY: number;
+ *   interactW: number;
+ *   interactH: number;
+ * }}
+ */
+function computeHubCar() {
+  if (!stopCanvas) return null;
+  const hub = getCurrentHubConfig();
+  if (!hub.car) return null;
+
+  const w = stopCanvas.width;
+  const h = stopCanvas.height;
+
+  const boxX = hub.car.relX * w;
+  const boxY = hub.car.relY * h;
+  const boxW = hub.car.relW * w;
+  const boxH = hub.car.relH * h;
+
+  const carSprite = sprites.car;
+  let drawW = boxW;
+  let drawH = boxH;
+  let drawX = boxX;
+  let drawY = boxY;
+
+  if (
+    carSprite &&
+    carSprite.complete &&
+    carSprite.naturalWidth > 0 &&
+    carSprite.naturalHeight > 0
+  ) {
+    const aspect = carSprite.naturalWidth / carSprite.naturalHeight;
+    drawW = boxW;
+    drawH = drawW / aspect;
+    if (drawH > boxH) {
+      drawH = boxH;
+      drawW = drawH * aspect;
+    }
+    drawX = boxX + (boxW - drawW) / 2;
+    drawY = boxY + (boxH - drawH) / 2;
+  }
+
+  const x = drawX;
+  const y = drawY;
+  const width = drawW;
+  const height = drawH;
+
+  // Зона взаимодействия немного больше машины, чтобы было удобно попасть
+  const padding = Math.max(8, Math.min(w, h) * 0.02);
+
+  const interactX = x - padding;
+  const interactY = y - padding;
+  const interactW = width + padding * 2;
+  const interactH = height + padding * 2;
+
+  return {
+    x,
+    y,
+    w: width,
+    h: height,
+    interactX,
+    interactY,
+    interactW,
+    interactH
+  };
+}
 
 /**
  * Реальные координаты зданий под текущий размер канваса.
@@ -87,7 +171,12 @@ function computeHubBuildings() {
     let drawX = boxX;
     let drawY = boxY;
 
-    if (sprite && sprite.complete && sprite.naturalWidth > 0 && sprite.naturalHeight > 0) {
+    if (
+      sprite &&
+      sprite.complete &&
+      sprite.naturalWidth > 0 &&
+      sprite.naturalHeight > 0
+    ) {
       const aspect = sprite.naturalWidth / sprite.naturalHeight;
       drawW = boxW;
       drawH = drawW / aspect;
@@ -153,6 +242,21 @@ function isNearPOI(poi) {
 }
 
 /**
+ * Проверка, что игрок рядом с машиной
+ * @param {{interactX:number;interactY:number;interactW:number;interactH:number}} car
+ */
+function isNearCar(car) {
+  const px = state.hub.x;
+  const py = state.hub.y;
+  return (
+    px >= car.interactX &&
+    px <= car.interactX + car.interactW &&
+    py >= car.interactY &&
+    py <= car.interactY + car.interactH
+  );
+}
+
+/**
  * Проверка, что позиция игрока врезалась в какое-либо здание
  * (коллизия по прямоугольникам СПРАЙТОВ)
  *
@@ -172,6 +276,21 @@ function collidesWithAnyBuilding(px, py, buildings) {
     }
   }
   return false;
+}
+
+/**
+ * Проверка, что позиция игрока врезалась в машину
+ * @param {number} px
+ * @param {number} py
+ * @param {{x:number;y:number;w:number;h:number}} car
+ */
+function collidesWithCar(px, py, car) {
+  return (
+    px >= car.x &&
+    px <= car.x + car.w &&
+    py >= car.y &&
+    py <= car.y + car.h
+  );
 }
 
 /**
@@ -196,18 +315,39 @@ function renderStopHub(dt) {
 
   const hubConfig = getCurrentHubConfig();
 
-  // Конфиг текущего хаба (здания уже в пикселях, по спрайтам)
+  // Конфиг текущего хаба
   const buildings = computeHubBuildings();
+  const car = computeHubCar();
 
-  // Обновление позиции игрока
+  // Если зашли в НОВЫЙ хаб — всегда начинаем В МАШИНЕ
+  if (state.hub.hubPointIndex !== hubConfig.pointIndex) {
+    if (car) {
+      state.hub.x = car.x + car.w / 2;
+      state.hub.y = car.y + car.h / 2;
+      state.hub.inCar = true;
+    } else {
+      state.hub.x = w / 2;
+      state.hub.y = h / 2;
+      state.hub.inCar = false;
+    }
+    state.hub.hubPointIndex = hubConfig.pointIndex;
+    if (w > 0 && h > 0) {
+      state.hub.xNorm = state.hub.x / w;
+      state.hub.yNorm = state.hub.y / h;
+    }
+  }
+
+  // Обновляем позицию игрока ТОЛЬКО если он не в машине
   const speed = state.hub.speed;
   let vx = 0;
   let vy = 0;
 
-  if (keysPressed["KeyW"] || keysPressed["ArrowUp"]) vy -= 1;
-  if (keysPressed["KeyS"] || keysPressed["ArrowDown"]) vy += 1;
-  if (keysPressed["KeyA"] || keysPressed["ArrowLeft"]) vx -= 1;
-  if (keysPressed["KeyD"] || keysPressed["ArrowRight"]) vx += 1;
+  if (!state.hub.inCar) {
+    if (keysPressed["KeyW"] || keysPressed["ArrowUp"]) vy -= 1;
+    if (keysPressed["KeyS"] || keysPressed["ArrowDown"]) vy += 1;
+    if (keysPressed["KeyA"] || keysPressed["ArrowLeft"]) vx -= 1;
+    if (keysPressed["KeyD"] || keysPressed["ArrowRight"]) vx += 1;
+  }
 
   const prevX = state.hub.x;
   const prevY = state.hub.y;
@@ -238,6 +378,12 @@ function renderStopHub(dt) {
     state.hub.y = prevY;
   }
 
+  // Коллизия с машиной (только если игрок пешком и машина есть)
+  if (!state.hub.inCar && car && collidesWithCar(state.hub.x, state.hub.y, car)) {
+    state.hub.x = prevX;
+    state.hub.y = prevY;
+  }
+
   // Обновляем нормализованные координаты игрока для корректного ресайза
   if (w > 0 && h > 0) {
     state.hub.xNorm = state.hub.x / w;
@@ -247,7 +393,7 @@ function renderStopHub(dt) {
   // Рендер сцены
   ctx.clearRect(0, 0, w, h);
 
-  // Фон города: свой для каждого хаба, растянутый по области действий
+  // Фон города
   const bgSpriteKey = hubConfig.backgroundKey || null;
   const bgSprite = bgSpriteKey ? sprites[bgSpriteKey] : null;
 
@@ -258,12 +404,12 @@ function renderStopHub(dt) {
     ctx.fillRect(0, 0, w, h);
   }
 
-  // Здания (POI)
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
   let currentHint = "";
 
+  // Сначала здания
   buildings.forEach((poi) => {
     const isNear = isNearPOI(poi);
 
@@ -280,8 +426,8 @@ function renderStopHub(dt) {
     );
     ctx.restore();
 
-    // Если игрок в зоне — мягкая заливка поверх рамки
-    if (isNear) {
+    // Если игрок в зоне — мягкая заливка поверх рамки (только пешком)
+    if (isNear && !state.hub.inCar) {
       ctx.fillStyle = "rgba(34,197,94,0.16)";
       ctx.fillRect(
         poi.interactX,
@@ -291,19 +437,18 @@ function renderStopHub(dt) {
       );
     }
 
-    // Спрайт здания: используем spriteKey, рассчитанный в computeHubBuildings
+    // Спрайт здания
     const spriteKey = poi.spriteKey;
     const sprite = spriteKey ? sprites[spriteKey] : null;
 
     if (sprite && sprite.complete && sprite.naturalWidth > 0) {
       ctx.drawImage(sprite, poi.x, poi.y, poi.w, poi.h);
     } else {
-      // Фолбек — прямоугольник
       ctx.fillStyle = "#0f172a";
       ctx.fillRect(poi.x, poi.y, poi.w, poi.h);
     }
 
-    // Подпись под зданием — отталкиваемся от спрайта
+    // Подпись под зданием
     ctx.font = "13px system-ui";
     ctx.fillStyle = "#e5e7eb";
     ctx.textBaseline = "top";
@@ -313,44 +458,69 @@ function renderStopHub(dt) {
       poi.y + poi.h + 6
     );
 
-    // Подсказку больше НЕ рисуем над зданием — только в нижнем меню.
-    if (isNear) {
+    if (isNear && !state.hub.inCar) {
       currentHint = poi.hint;
     }
   });
 
-  // Игрок (масштабируем относительно высоты канваса)
+  // Машина игрока
+  if (car) {
+    const carSprite = sprites.car;
+    if (carSprite && carSprite.complete && carSprite.naturalWidth > 0) {
+      ctx.drawImage(carSprite, car.x, car.y, car.w, car.h);
+    } else {
+      ctx.fillStyle = "#1f2937";
+      ctx.fillRect(car.x, car.y, car.w, car.h);
+    }
+
+    // Если рядом с машиной — подсказка по машине
+    if (isNearCar(car)) {
+      currentHint = state.hub.inCar
+        ? "E — выйти из машины"
+        : "E — сесть в машину";
+    }
+  }
+
+  // Игрок: МЕНЬШЕ исходный масштаб
   const px = state.hub.x;
   const py = state.hub.y;
-  const playerSize = Math.max(10, Math.round(h * 0.035)); // ~16px при высоте ~450
+  const playerSize = Math.max(8, Math.round(h * 0.025)); // было ~0.035
 
   const playerSprite = sprites.player;
   const angle = state.hub.angle ?? -Math.PI / 2; // по умолчанию вверх
 
-  ctx.save();
-  ctx.translate(px, py);
-  ctx.rotate(angle);
+  if (!state.hub.inCar) {
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(angle);
 
-  if (playerSprite && playerSprite.complete && playerSprite.naturalWidth > 0) {
-    ctx.drawImage(
-      playerSprite,
-      -playerSize,
-      -playerSize,
-      playerSize * 2,
-      playerSize * 2
-    );
-  } else {
-    ctx.fillStyle = "#f97316";
-    ctx.fillRect(-playerSize, -playerSize, playerSize * 2, playerSize * 2);
+    if (
+      playerSprite &&
+      playerSprite.complete &&
+      playerSprite.naturalWidth > 0
+    ) {
+      ctx.drawImage(
+        playerSprite,
+        -playerSize,
+        -playerSize,
+        playerSize * 2,
+        playerSize * 2
+      );
+    } else {
+      ctx.fillStyle = "#f97316";
+      ctx.fillRect(-playerSize, -playerSize, playerSize * 2, playerSize * 2);
+    }
+
+    ctx.restore();
   }
-
-  ctx.restore();
 
   const hintEl = qid("stopHint");
   if (hintEl) {
     hintEl.textContent =
       currentHint ||
-      "Подойди к зданию и нажми E. M — открыть карту маршрута.";
+      (state.hub.inCar
+        ? "Подойди к машине и нажми E, чтобы выйти. M — открыть карту маршрута."
+        : "Подойди к зданию и нажми E. M — открыть карту маршрута.");
   }
 }
 
@@ -359,13 +529,64 @@ function renderStopHub(dt) {
  */
 function handleHubInteract() {
   if (!stopCanvas) return;
+
+  const car = computeHubCar();
   const buildings = computeHubBuildings();
+  const nearCar = car ? isNearCar(car) : false;
+
+  // Если рядом с машиной — приоритетно обрабатываем посадку/выход
+  if (nearCar && car) {
+    if (state.hub.inCar) {
+      // ВЫХОД ИЗ МАШИНЫ — пытаемся появиться СБОКУ,
+      // избегая телепорта внутрь зданий
+      const centerX = car.x + car.w / 2;
+      const centerY = car.y + car.h / 2;
+
+      const exitOffsets = [
+        { dx: car.w * 0.7, dy: 0 },           // справа
+        { dx: -car.w * 0.7, dy: 0 },          // слева
+        { dx: 0, dy: car.h * 0.9 },           // снизу (fallback)
+        { dx: 0, dy: -car.h * 0.9 }           // сверху (на всякий)
+      ];
+
+      let foundPos = null;
+      for (const off of exitOffsets) {
+        const candX = centerX + off.dx;
+        const candY = centerY + off.dy;
+        if (!collidesWithAnyBuilding(candX, candY, buildings)) {
+          foundPos = { x: candX, y: candY };
+          break;
+        }
+      }
+
+      // На всякий случай, если вдруг всё занято
+      if (!foundPos) {
+        foundPos = {
+          x: centerX,
+          y: car.y + car.h + Math.max(4, car.h * 0.2)
+        };
+      }
+
+      state.hub.inCar = false;
+      state.hub.x = foundPos.x;
+      state.hub.y = foundPos.y;
+    } else {
+      // СЕСТЬ В МАШИНУ — центр по машине
+      state.hub.inCar = true;
+      state.hub.x = car.x + car.w / 2;
+      state.hub.y = car.y + car.h / 2;
+    }
+    return;
+  }
+
+  // В машине нельзя интерактить здания
+  if (state.hub.inCar) return;
+
   const nearPoi = buildings.find((poi) => isNearPOI(poi));
   if (!nearPoi) return;
 
   // Логика завязана на тип здания
   if (nearPoi.type === "gas") {
-    // Покупаем фиксированные 10 топлива за 10₽
     const amount = 10;
     const cost = amount * 1;
     if (state.money < cost) {
@@ -409,12 +630,10 @@ function handleHubInteract() {
 function resizeStopCanvas() {
   if (!stopCanvas) return;
 
-  // Родительский контейнер (screen-stop)
   const container = stopCanvas.parentElement;
   /** @type {HTMLElement|null} */
   const bottomBarEl = document.querySelector(".stop-bottom-bar");
 
-  // Высота нижней панели — по факту, с запасным дефолтом 172
   const bottomBarHeight =
     (bottomBarEl && bottomBarEl.clientHeight) ? bottomBarEl.clientHeight : 172;
 
@@ -433,7 +652,6 @@ function resizeStopCanvas() {
     (container ? container.clientHeight : stopCanvas.clientHeight) -
     bottomBarHeight;
 
-  // На всякий случай не даём высоте уйти в ноль/отрицательное
   if (height < 100) height = 100;
 
   if (width > 0 && height > 0) {
@@ -442,28 +660,20 @@ function resizeStopCanvas() {
   }
 
   if (state.mode === "stop") {
-    // Первый заход в хаб — центрируем персонажа
-    if (state.hub.x === 400 && state.hub.y === 225) {
-      state.hub.x = width / 2;
-      state.hub.y = height / 2;
+    // Если уже есть нормализованные координаты — рескейлим
+    if (
+      typeof state.hub.xNorm === "number" &&
+      typeof state.hub.yNorm === "number"
+    ) {
+      state.hub.x = state.hub.xNorm * width;
+      state.hub.y = state.hub.yNorm * height;
     } else {
-      // Если уже есть нормализованные координаты — используем их
-      if (
-        typeof state.hub.xNorm === "number" &&
-        typeof state.hub.yNorm === "number"
-      ) {
-        state.hub.x = state.hub.xNorm * width;
-        state.hub.y = state.hub.yNorm * height;
-      } else {
-        // Иначе масштабируем старую позицию пропорционально старым размерам
-        const normX = state.hub.x / prevW;
-        const normY = state.hub.y / prevH;
-        state.hub.x = normX * width;
-        state.hub.y = normY * height;
-      }
+      const normX = state.hub.x / prevW;
+      const normY = state.hub.y / prevH;
+      state.hub.x = normX * width;
+      state.hub.y = normY * height;
     }
 
-    // Обновляем нормализованные координаты под новый размер
     if (width > 0 && height > 0) {
       state.hub.xNorm = state.hub.x / width;
       state.hub.yNorm = state.hub.y / height;

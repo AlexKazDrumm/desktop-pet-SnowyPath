@@ -229,8 +229,18 @@ function getCharacterById(id) {
 
 /**
  * @typedef {{
+ *   relX: number;
+ *   relY: number;
+ *   relW: number;
+ *   relH: number;
+ * }} HubCarConfig
+ */
+
+/**
+ * @typedef {{
  *   pointIndex: number;
  *   backgroundKey?: string; // фон хаба (город)
+ *   car?: HubCarConfig;     // позиция машины игрока
  *   buildings: HubBuildingConfig[];
  * }} HubConfig
  */
@@ -244,6 +254,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 0,
     backgroundKey: "hubBg0",
+    car: {
+      relX: 0.45, // низ, примерно по центру, под зданиями
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -253,7 +269,6 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
         relY: 0.26,
         relW: 0.17,
         relH: 0.20
-        // spriteKey: "hubGas_0" // при желании можешь раскомментить/задать свой
       },
       {
         type: "food",
@@ -288,6 +303,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 1,
     backgroundKey: "hubBg1",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -331,6 +352,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 2,
     backgroundKey: "hubBg2",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -374,6 +401,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 3,
     backgroundKey: "hubBg3",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -417,6 +450,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 4,
     backgroundKey: "hubBg4",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -460,6 +499,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 5,
     backgroundKey: "hubBg5",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -503,6 +548,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 6,
     backgroundKey: "hubBg6",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -546,6 +597,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 7,
     backgroundKey: "hubBg7",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -589,6 +646,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 8,
     backgroundKey: "hubBg8",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",
@@ -632,6 +695,12 @@ const hubConfigs = /** @type {HubConfig[]} */ ([
   {
     pointIndex: 9,
     backgroundKey: "hubBg9",
+    car: {
+      relX: 0.45,
+      relY: 0.88,
+      relW: 0.12,
+      relH: 0.10
+    },
     buildings: [
       {
         type: "gas",

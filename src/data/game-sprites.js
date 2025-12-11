@@ -14,6 +14,18 @@ const spritePaths = {
   mapPointCurrent: "assets/map_point_current.png",
   mapPointLocked: "assets/map_point_locked.png",
 
+  // Фоны хабов (города)
+  hubBg0: "assets/hub_bg_0.png",
+  hubBg1: "assets/hub_bg_1.png",
+  hubBg2: "assets/hub_bg_2.png",
+  hubBg3: "assets/hub_bg_3.png",
+  hubBg4: "assets/hub_bg_4.png",
+  hubBg5: "assets/hub_bg_5.png",
+  hubBg6: "assets/hub_bg_6.png",
+  hubBg7: "assets/hub_bg_7.png",
+  hubBg8: "assets/hub_bg_8.png",
+  hubBg9: "assets/hub_bg_9.png",
+
   // Персонажи: анимация ходьбы в хабе (3 кадра: idle, walk1, walk2)
   char_tourist_idle: "assets/char_tourist_idle.png",
   char_tourist_walk1: "assets/char_tourist_walk1.png",
