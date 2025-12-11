@@ -816,17 +816,39 @@ function handleHubInteract() {
 
 /**
  * Ресайз канваса остановки
- * — масштабируем канвас
- * — сохраняем относительную позицию игрока, чтобы он не телепортировался и не оказывался в текстуре
+ * — подгоняем под высоту контейнера минус нижнюю панель
+ * — сохраняем относительную позицию игрока, чтобы он не телепортировался
+ *   и не оказывался под меню
  */
 function resizeStopCanvas() {
   if (!stopCanvas) return;
 
-  const prevW = stopCanvas.width || stopCanvas.clientWidth || 1;
-  const prevH = stopCanvas.height || stopCanvas.clientHeight || 1;
+  // Родительский контейнер (screen-stop)
+  const container = stopCanvas.parentElement;
+  /** @type {HTMLElement|null} */
+  const bottomBarEl = document.querySelector(".stop-bottom-bar");
 
-  const width = stopCanvas.clientWidth;
-  const height = stopCanvas.clientHeight;
+  // Высота нижней панели — по факту, с запасным дефолтом 172
+  const bottomBarHeight =
+    (bottomBarEl && bottomBarEl.clientHeight) ? bottomBarEl.clientHeight : 172;
+
+  const prevW =
+    stopCanvas.width ||
+    (container ? container.clientWidth : stopCanvas.clientWidth) ||
+    1;
+
+  const prevH =
+    stopCanvas.height ||
+    (container ? container.clientHeight - bottomBarHeight : stopCanvas.clientHeight - bottomBarHeight) ||
+    1;
+
+  const width = container ? container.clientWidth : stopCanvas.clientWidth;
+  let height =
+    (container ? container.clientHeight : stopCanvas.clientHeight) -
+    bottomBarHeight;
+
+  // На всякий случай не даём высоте уйти в ноль/отрицательное
+  if (height < 100) height = 100;
 
   if (width > 0 && height > 0) {
     stopCanvas.width = width;
@@ -840,11 +862,14 @@ function resizeStopCanvas() {
       state.hub.y = height / 2;
     } else {
       // Если уже есть нормализованные координаты — используем их
-      if (typeof state.hub.xNorm === "number" && typeof state.hub.yNorm === "number") {
+      if (
+        typeof state.hub.xNorm === "number" &&
+        typeof state.hub.yNorm === "number"
+      ) {
         state.hub.x = state.hub.xNorm * width;
         state.hub.y = state.hub.yNorm * height;
       } else {
-        // Иначе масштабируем старую позицию пропорционально
+        // Иначе масштабируем старую позицию пропорционально старым размерам
         const normX = state.hub.x / prevW;
         const normY = state.hub.y / prevH;
         state.hub.x = normX * width;
