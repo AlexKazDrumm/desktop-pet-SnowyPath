@@ -143,10 +143,10 @@ const characters = [
     baseFatigue: 90,
     inventory: [
       {
-        id: "canister",
-        name: "Канистра",
-        iconKey: "item_canister",
-        description: "Пластиковая канистра с запасом топлива."
+        id: "pistol",
+        name: "Пистолет",
+        iconKey: "item_pistol",
+        description: "Лицензированное оружие самообороны."
       }
     ]
   },
@@ -189,10 +189,10 @@ const characters = [
     baseFatigue: 80,
     inventory: [
       {
-        id: "pistol",
-        name: "Пистолет",
-        iconKey: "item_pistol",
-        description: "Лицензированное оружие самообороны."
+        id: "canister",
+        name: "Канистра",
+        iconKey: "item_canister",
+        description: "Пластиковая канистра с запасом топлива."
       }
     ]
   }
