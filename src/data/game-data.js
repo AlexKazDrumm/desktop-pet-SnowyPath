@@ -208,3 +208,467 @@ function getCharacterById(id) {
   return found || characters[0];
 }
 
+/**
+ * Типы зданий в хабе
+ * @typedef {'gas'|'food'|'hotel'|'work'} HubBuildingType
+ */
+
+/**
+ * @typedef {{
+ *   id?: string;
+ *   type: HubBuildingType;
+ *   label: string;
+ *   hint: string;
+ *   relX: number;
+ *   relY: number;
+ *   relW: number;
+ *   relH: number;
+ *   spriteKey?: string; // опциональный индивидуальный спрайт для этого здания
+ * }} HubBuildingConfig
+ */
+
+/**
+ * @typedef {{
+ *   pointIndex: number;
+ *   backgroundKey?: string; // фон хаба (город)
+ *   buildings: HubBuildingConfig[];
+ * }} HubConfig
+ */
+
+/**
+ * Конфигурация 10 хабов (по индексу точки маршрута: 0..9)
+ * Координаты нормализованы (0..1 относительно ширины/высоты канваса)
+ * backgroundKey — ключ спрайта фона (можно завести hubBg0..hubBg9).
+ */
+const hubConfigs = /** @type {HubConfig[]} */ ([
+  {
+    pointIndex: 0,
+    backgroundKey: "hubBg0",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.12,
+        relY: 0.26,
+        relW: 0.17,
+        relH: 0.20
+        // spriteKey: "hubGas_0" // при желании можешь раскомментить/задать свой
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.42,
+        relY: 0.18,
+        relW: 0.18,
+        relH: 0.18
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.12,
+        relY: 0.60,
+        relW: 0.19,
+        relH: 0.22
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.45,
+        relY: 0.60,
+        relW: 0.19,
+        relH: 0.22
+      }
+    ]
+  },
+
+  {
+    pointIndex: 1,
+    backgroundKey: "hubBg1",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.65,
+        relY: 0.22,
+        relW: 0.17,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.25,
+        relY: 0.20,
+        relW: 0.18,
+        relH: 0.18
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.68,
+        relY: 0.58,
+        relW: 0.19,
+        relH: 0.22
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.28,
+        relY: 0.62,
+        relW: 0.19,
+        relH: 0.22
+      }
+    ]
+  },
+
+  {
+    pointIndex: 2,
+    backgroundKey: "hubBg2",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.18,
+        relY: 0.24,
+        relW: 0.16,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.60,
+        relY: 0.18,
+        relW: 0.18,
+        relH: 0.18
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.20,
+        relY: 0.60,
+        relW: 0.20,
+        relH: 0.23
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.58,
+        relY: 0.62,
+        relW: 0.20,
+        relH: 0.23
+      }
+    ]
+  },
+
+  {
+    pointIndex: 3,
+    backgroundKey: "hubBg3",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.40,
+        relY: 0.16,
+        relW: 0.20,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.10,
+        relY: 0.30,
+        relW: 0.18,
+        relH: 0.18
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.70,
+        relY: 0.32,
+        relW: 0.20,
+        relH: 0.23
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.40,
+        relY: 0.62,
+        relW: 0.20,
+        relH: 0.23
+      }
+    ]
+  },
+
+  {
+    pointIndex: 4,
+    backgroundKey: "hubBg4",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.18,
+        relY: 0.20,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.64,
+        relY: 0.22,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.20,
+        relY: 0.60,
+        relW: 0.20,
+        relH: 0.23
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.62,
+        relY: 0.62,
+        relW: 0.20,
+        relH: 0.23
+      }
+    ]
+  },
+
+  {
+    pointIndex: 5,
+    backgroundKey: "hubBg5",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.08,
+        relY: 0.18,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.38,
+        relY: 0.20,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.68,
+        relY: 0.22,
+        relW: 0.18,
+        relH: 0.22
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.42,
+        relY: 0.64,
+        relW: 0.20,
+        relH: 0.23
+      }
+    ]
+  },
+
+  {
+    pointIndex: 6,
+    backgroundKey: "hubBg6",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.10,
+        relY: 0.58,
+        relW: 0.18,
+        relH: 0.22
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.24,
+        relY: 0.18,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.70,
+        relY: 0.60,
+        relW: 0.20,
+        relH: 0.23
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.62,
+        relY: 0.20,
+        relW: 0.18,
+        relH: 0.20
+      }
+    ]
+  },
+
+  {
+    pointIndex: 7,
+    backgroundKey: "hubBg7",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.35,
+        relY: 0.22,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.12,
+        relY: 0.60,
+        relW: 0.18,
+        relH: 0.22
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.70,
+        relY: 0.58,
+        relW: 0.20,
+        relH: 0.23
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.38,
+        relY: 0.64,
+        relW: 0.20,
+        relH: 0.23
+      }
+    ]
+  },
+
+  {
+    pointIndex: 8,
+    backgroundKey: "hubBg8",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.14,
+        relY: 0.18,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.52,
+        relY: 0.20,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.20,
+        relY: 0.56,
+        relW: 0.20,
+        relH: 0.23
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.60,
+        relY: 0.58,
+        relW: 0.20,
+        relH: 0.23
+      }
+    ]
+  },
+
+  {
+    pointIndex: 9,
+    backgroundKey: "hubBg9",
+    buildings: [
+      {
+        type: "gas",
+        label: "Заправка",
+        hint: "E — купить 10 топлива за 10₽.",
+        relX: 0.08,
+        relY: 0.24,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "food",
+        label: "Еда",
+        hint: "E — поесть (+40 сытости за 10₽).",
+        relX: 0.70,
+        relY: 0.20,
+        relW: 0.18,
+        relH: 0.20
+      },
+      {
+        type: "hotel",
+        label: "Гостиница",
+        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
+        relX: 0.16,
+        relY: 0.62,
+        relW: 0.20,
+        relH: 0.23
+      },
+      {
+        type: "work",
+        label: "Подработка",
+        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
+        relX: 0.66,
+        relY: 0.64,
+        relW: 0.20,
+        relH: 0.23
+      }
+    ]
+  }
+]);

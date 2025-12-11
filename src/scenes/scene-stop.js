@@ -1,5 +1,3 @@
-// scene-stop.js
-
 /**
  * Типы зданий в хабе
  * @typedef {'gas'|'food'|'hotel'|'work'} HubBuildingType
@@ -15,451 +13,17 @@
  *   relY: number;
  *   relW: number;
  *   relH: number;
+ *   spriteKey?: string; // опциональный ключ спрайта для конкретного здания
  * }} HubBuildingConfig
  */
 
 /**
  * @typedef {{
  *   pointIndex: number;
+ *   backgroundKey?: string; // фон хаба
  *   buildings: HubBuildingConfig[];
  * }} HubConfig
  */
-
-/**
- * Конфигурация 10 хабов (по индексу точки маршрута: 0..9)
- * Координаты нормализованы (0..1 относительно ширины/высоты канваса)
- */
-const hubConfigs = /** @type {HubConfig[]} */ ([
-  // Хаб 0 — базовый, твой текущий вариант
-  {
-    pointIndex: 0,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.12,
-        relY: 0.26,
-        relW: 0.17,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.42,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.12,
-        relY: 0.60,
-        relW: 0.19,
-        relH: 0.22
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.45,
-        relY: 0.60,
-        relW: 0.19,
-        relH: 0.22
-      }
-    ]
-  },
-
-  // Хаб 1 — чуть более "растянутый" вправо
-  {
-    pointIndex: 1,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.65,
-        relY: 0.22,
-        relW: 0.17,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.25,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.68,
-        relY: 0.58,
-        relW: 0.19,
-        relH: 0.22
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.28,
-        relY: 0.62,
-        relW: 0.19,
-        relH: 0.22
-      }
-    ]
-  },
-
-  // Хаб 2 — здания больше "по диагонали"
-  {
-    pointIndex: 2,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.18,
-        relY: 0.24,
-        relW: 0.16,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.60,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.20,
-        relY: 0.60,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.58,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      }
-    ]
-  },
-
-  // Хаб 3 — заправка в центре сверху, остальное по краям
-  {
-    pointIndex: 3,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.40,
-        relY: 0.16,
-        relW: 0.20,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.10,
-        relY: 0.30,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.70,
-        relY: 0.32,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.40,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      }
-    ]
-  },
-
-  // Хаб 4 — здания "квадратом"
-  {
-    pointIndex: 4,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.18,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.64,
-        relY: 0.22,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.20,
-        relY: 0.60,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.62,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      }
-    ]
-  },
-
-  // Хаб 5 — "коридор": почти всё сверху, работа снизу
-  {
-    pointIndex: 5,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.08,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.38,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.68,
-        relY: 0.22,
-        relW: 0.18,
-        relH: 0.22
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.42,
-        relY: 0.64,
-        relW: 0.20,
-        relH: 0.23
-      }
-    ]
-  },
-
-  // Хаб 6 — заправка снизу слева, отель снизу справа
-  {
-    pointIndex: 6,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.10,
-        relY: 0.58,
-        relW: 0.18,
-        relH: 0.22
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.24,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.70,
-        relY: 0.60,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.62,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      }
-    ]
-  },
-
-  // Хаб 7 — компактный центр + два "краевых" здания
-  {
-    pointIndex: 7,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.35,
-        relY: 0.22,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.12,
-        relY: 0.60,
-        relW: 0.18,
-        relH: 0.22
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.70,
-        relY: 0.58,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.38,
-        relY: 0.64,
-        relW: 0.20,
-        relH: 0.23
-      }
-    ]
-  },
-
-  // Хаб 8 — смещение всего "вверх"
-  {
-    pointIndex: 8,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.14,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.52,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.20,
-        relY: 0.56,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.60,
-        relY: 0.58,
-        relW: 0.20,
-        relH: 0.23
-      }
-    ]
-  },
-
-  // Хаб 9 — финальный, чуть более "широко" расставленный
-  {
-    pointIndex: 9,
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.08,
-        relY: 0.24,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.70,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.16,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.66,
-        relY: 0.64,
-        relW: 0.20,
-        relH: 0.23
-      }
-    ]
-  }
-]);
 
 /**
  * Получить конфиг текущего хаба по индексу точки
@@ -470,7 +34,8 @@ function getCurrentHubConfig() {
   return hubConfigs[idx];
 }
 
-const poiSpriteMap = {
+// Дефолтные спрайты по типу, если для здания не задан свой spriteKey
+const poiSpriteDefaults = {
   gas: "hubGas",
   food: "hubFood",
   hotel: "hubHotel",
@@ -487,6 +52,7 @@ const poiSpriteMap = {
  *   type: HubBuildingType;
  *   label: string;
  *   hint: string;
+ *   spriteKey: string | null;
  *   x: number;
  *   y: number;
  *   w: number;
@@ -512,8 +78,8 @@ function computeHubBuildings() {
     const boxW = b.relW * w;
     const boxH = b.relH * h;
 
-    // Пытаемся вписать спрайт в эту рамку, сохраняя пропорции
-    const spriteKey = poiSpriteMap[b.type] || null;
+    // Ключ спрайта: либо кастомный, либо дефолт по типу
+    const spriteKey = b.spriteKey || poiSpriteDefaults[b.type] || null;
     const sprite = spriteKey ? sprites[spriteKey] : null;
 
     let drawW = boxW;
@@ -538,10 +104,10 @@ function computeHubBuildings() {
     const width = drawW;
     const height = drawH;
 
-    // Полоса взаимодействия — строго по ширине спрайта, под ним
+    // Полоса взаимодействия — строго по ширине спрайта, ВПРИТЫК под ним
     let interactX = x;
     let interactW = width;
-    let interactY = y + height + 8;
+    let interactY = y + height; // БЕЗ зазора
     let interactH = interactBandHeight;
 
     if (interactY + interactH > h - 8) {
@@ -553,6 +119,7 @@ function computeHubBuildings() {
       type: b.type,
       label: b.label,
       hint: b.hint,
+      spriteKey,
       x,
       y,
       w: width,
@@ -578,10 +145,10 @@ function isNearPOI(poi) {
   const px = state.hub.x;
   const py = state.hub.y;
   return (
-    px > poi.interactX &&
-    px < poi.interactX + poi.interactW &&
-    py > poi.interactY &&
-    py < poi.interactY + poi.interactH
+    px >= poi.interactX &&
+    px <= poi.interactX + poi.interactW &&
+    py >= poi.interactY &&
+    py <= poi.interactY + poi.interactH
   );
 }
 
@@ -595,7 +162,12 @@ function isNearPOI(poi) {
  */
 function collidesWithAnyBuilding(px, py, buildings) {
   for (const b of buildings) {
-    if (px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h) {
+    if (
+      px >= b.x &&
+      px <= b.x + b.w &&
+      py >= b.y &&
+      py <= b.y + b.h
+    ) {
       return true;
     }
   }
@@ -621,6 +193,8 @@ function renderStopHub(dt) {
   const ctx = stopCtx;
   const w = stopCanvas.width;
   const h = stopCanvas.height;
+
+  const hubConfig = getCurrentHubConfig();
 
   // Конфиг текущего хаба (здания уже в пикселях, по спрайтам)
   const buildings = computeHubBuildings();
@@ -673,9 +247,16 @@ function renderStopHub(dt) {
   // Рендер сцены
   ctx.clearRect(0, 0, w, h);
 
-  // Фон
-  ctx.fillStyle = "#020617";
-  ctx.fillRect(0, 0, w, h);
+  // Фон города: свой для каждого хаба, растянутый по области действий
+  const bgSpriteKey = hubConfig.backgroundKey || null;
+  const bgSprite = bgSpriteKey ? sprites[bgSpriteKey] : null;
+
+  if (bgSprite && bgSprite.complete && bgSprite.naturalWidth > 0) {
+    ctx.drawImage(bgSprite, 0, 0, w, h);
+  } else {
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(0, 0, w, h);
+  }
 
   // Здания (POI)
   ctx.textAlign = "center";
@@ -686,7 +267,20 @@ function renderStopHub(dt) {
   buildings.forEach((poi) => {
     const isNear = isNearPOI(poi);
 
-    // Мягкая подсветка зоны взаимодействия, только если мы в радиусе
+    // Всегда рисуем рамку зоны взаимодействия (пунктир)
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = "rgba(148,163,184,0.9)"; // сероватый
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+      poi.interactX,
+      poi.interactY,
+      poi.interactW,
+      poi.interactH
+    );
+    ctx.restore();
+
+    // Если игрок в зоне — мягкая заливка поверх рамки
     if (isNear) {
       ctx.fillStyle = "rgba(34,197,94,0.16)";
       ctx.fillRect(
@@ -697,8 +291,8 @@ function renderStopHub(dt) {
       );
     }
 
-    // Спрайт здания
-    const spriteKey = poiSpriteMap[poi.type] || null;
+    // Спрайт здания: используем spriteKey, рассчитанный в computeHubBuildings
+    const spriteKey = poi.spriteKey;
     const sprite = spriteKey ? sprites[spriteKey] : null;
 
     if (sprite && sprite.complete && sprite.naturalWidth > 0) {
@@ -719,24 +313,16 @@ function renderStopHub(dt) {
       poi.y + poi.h + 6
     );
 
-    // Если мы в зоне взаимодействия — короткая подсказка
+    // Подсказку больше НЕ рисуем над зданием — только в нижнем меню.
     if (isNear) {
-      ctx.font = "11px system-ui";
-      ctx.fillStyle = "#a5f3fc";
-      ctx.textBaseline = "bottom";
-      ctx.fillText(
-        poi.hint,
-        poi.x + poi.w / 2,
-        poi.y - 6
-      );
       currentHint = poi.hint;
     }
   });
 
-  // Игрок
+  // Игрок (масштабируем относительно высоты канваса)
   const px = state.hub.x;
   const py = state.hub.y;
-  const playerSize = 16;
+  const playerSize = Math.max(10, Math.round(h * 0.035)); // ~16px при высоте ~450
 
   const playerSprite = sprites.player;
   const angle = state.hub.angle ?? -Math.PI / 2; // по умолчанию вверх
