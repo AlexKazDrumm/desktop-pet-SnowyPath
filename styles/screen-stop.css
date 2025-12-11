@@ -1,0 +1,81 @@
+/* -------- Полноэкранный экран остановки -------- */
+
+.screen-stop {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative; /* для абсолютного позиционирования нижней панели и канваса */
+  overflow: hidden;
+}
+
+/*
+  Канвас теперь занимает всё пространство над нижней панелью.
+  Высота панели — 172px (см. ниже), поэтому bottom: 172px.
+*/
+.screen-stop canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 172px;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+
+/* Нижняя панель статов/инвентаря закреплена у низа экрана остановки */
+.stop-bottom-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 172px; /* фиксируем высоту, под неё "выкраивается" место у канваса */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #020617;
+  border-top: 1px solid #374151;
+  font-size: 13px;
+}
+
+.stop-bottom-left,
+.stop-bottom-center,
+.stop-bottom-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stop-bottom-left {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.stop-bottom-center {
+  flex: 1.5 1 0;
+  justify-content: center;
+  min-width: 0;
+}
+
+.stop-bottom-right {
+  flex: 1.2 1 0;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 16px;
+  text-align: right;
+}
+
+.stop-controls {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.stop-bottom-bar .hint {
+  margin: 0;
+}

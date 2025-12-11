@@ -1,0 +1,249 @@
+/* Верхняя панель со статистикой */
+.top-bar {
+  background: #111827;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-bottom: 1px solid #374151;
+}
+
+.stats {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.stat-value {
+  font-weight: 600;
+}
+
+.screen-desc {
+  color: #9ca3af;
+  margin-bottom: 16px;
+}
+
+.screen-desc.small {
+  font-size: 12px;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: #020617;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  padding: 12px;
+}
+
+.big-card {
+  margin-top: 8px;
+}
+
+/* Карта сегментов (старый список, если понадобится) */
+.segments-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.segment-card {
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+  padding: 8px;
+  background: #020617;
+  font-size: 13px;
+}
+
+.segment-card.current {
+  border-color: #22c55e;
+}
+
+.segment-card.completed {
+  border-style: dashed;
+  border-color: #9ca3af;
+  opacity: 0.7;
+}
+
+.segment-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Блок события на дороге */
+#eventContainer {
+  min-height: 80px;
+}
+
+.event-text {
+  margin-bottom: 8px;
+}
+
+.event-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.event-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 9999px;
+  border: 1px solid #4b5563;
+  margin-right: 4px;
+  color: #9ca3af;
+}
+
+/* Конец игры */
+#endTitle {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+#endDescription {
+  color: #d1d5db;
+  margin-bottom: 16px;
+}
+
+/* Подсказки и инфо */
+.hint {
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.map-info {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+/* Общая панель персонажа в хабе */
+.stop-player-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-avatar-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: #111827;
+  border: 1px solid #374151;
+  flex-shrink: 0;
+}
+
+.player-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stop-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.stop-stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.stop-stat-label {
+  color: #9ca3af;
+}
+
+.stop-stat-value {
+  font-weight: 600;
+}
+
+/* Инвентарь */
+.inventory-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.inventory-toggle {
+  font-size: 12px;
+  padding: 4px 8px;
+  align-self: center;
+}
+
+.inventory-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px;
+  background: #020617;
+  border-radius: 8px;
+  border: 1px solid #374151;
+}
+
+.inventory-wrapper.inventory-collapsed .inventory-panel {
+  display: none;
+}
+
+.inventory-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.inventory-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #111827;
+  border: 1px solid #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.inventory-item-icon img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+}
+
+.inventory-item-label {
+  text-align: center;
+  color: #e5e7eb;
+}
+
+.inventory-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+}

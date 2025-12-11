@@ -1,0 +1,6 @@
+/* Стили финального экрана, часть уже описана в components.css (#endTitle, #endDescription),
+   но здесь можно переопределять именно layout/отступы для screen-end */
+
+#screen-end {
+  text-align: center;
+}

@@ -3,7 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <title>Roadtrip MVP</title>
-  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Общие стили и компоненты -->
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+
+  <!-- Стили отдельных сцен -->
+  <link rel="stylesheet" href="styles/screen-menu.css" />
+  <link rel="stylesheet" href="styles/screen-stop.css" />
+  <link rel="stylesheet" href="styles/screen-map.css" />
+  <link rel="stylesheet" href="styles/screen-road.css" />
+  <link rel="stylesheet" href="styles/screen-end.css" />
 </head>
 <body>
   <div id="app">
@@ -199,18 +209,18 @@
   </div>
 
   <!-- Порядок важен: сначала утилиты и данные, потом сцены, потом входная точка -->
-  <script src="game-utils.js"></script>
-  <script src="game-data.js"></script>
-  <script src="game-sprites.js"></script>
-  <script src="game-state.js"></script>
-  <script src="game-canvas.js"></script>
-  <script src="scene-stop.js"></script>
-  <script src="scene-map.js"></script>
-  <script src="scene-road.js"></script>
-  <script src="screens-core.js"></script>
-  <script src="scene-menu.js"></script>
-  <script src="scene-end.js"></script>
-  <script src="input.js"></script>
-  <script src="game-main.js"></script>
+  <script src="src/core/game-utils.js"></script>
+  <script src="src/data/game-data.js"></script>
+  <script src="src/data/game-sprites.js"></script>
+  <script src="src/core/game-state.js"></script>
+  <script src="src/core/game-canvas.js"></script>
+  <script src="src/scenes/scene-stop.js"></script>
+  <script src="src/scenes/scene-map.js"></script>
+  <script src="src/scenes/scene-road.js"></script>
+  <script src="src/core/screens-core.js"></script>
+  <script src="src/scenes/scene-menu.js"></script>
+  <script src="src/scenes/scene-end.js"></script>
+  <script src="src/core/input.js"></script>
+  <script src="src/core/game-main.js"></script>
 </body>
 </html>
