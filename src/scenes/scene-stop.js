@@ -19,9 +19,9 @@ let stopUiInited = false;
 
 /** локальные флаги сцены (не трогаем глобальный state) */
 const stopLocalFlags = {
-  introShownAtHub0: false,
-  introShownAfterExitHub0: false,
-  trashSandwichFound: false,
+  introShownAtHub0: false,            // toast-подсказка "выйди из машины"
+  hub0ExitHintShown: false,           // toast после выхода "подойди к местному"
+  hub0NpcIntroDialogShown: false,     // интро-диалог показан (только по E у NPC)
   trashSearchedOnce: false
 };
 
@@ -47,6 +47,10 @@ let stopDialogState = {
 };
 
 let stopToastTimer = 0;
+
+/** защита от двойного интеракта (автоповтор keydown/двойные слушатели) */
+let stopInteractCooldown = 0;
+const STOP_INTERACT_COOLDOWN_SEC = 0.22;
 
 /**
  * Получить текущий конфиг хаба на сетке
@@ -500,10 +504,6 @@ function computeHubProps(hubCfg, layout) {
 
     const r = cellToSubRect(p.cx, p.cy, layout, relX, relY, relW, relH);
 
-    // angle:
-    // - если задан p.angleRad -> используем
-    // - если задан p.angleDeg -> конвертим
-    // - если задан p.dir ("up"/"down"/"left"/"right") -> ставим кратно 90
     let angle = 0;
     if (typeof p.angleRad === "number") angle = p.angleRad;
     else if (typeof p.angleDeg === "number") angle = (p.angleDeg * Math.PI) / 180;
@@ -514,7 +514,6 @@ function computeHubProps(hubCfg, layout) {
       else if (p.dir === "up") angle = -Math.PI / 2;
     }
 
-    // можно сразу привязать к 8 направлениям, если нужно
     if (p.snap8) angle = snapAngleTo8Directions(angle);
 
     res.push({
@@ -553,7 +552,6 @@ function isNearProp(p) {
   const px = state.hub.x;
   const py = state.hub.y;
 
-  // меньше паддинги, чтобы “прижаться к стене” было реально удобно
   const padX = Math.max(6, p.w * 0.45);
   const padY = Math.max(6, p.h * 0.55);
 
@@ -736,9 +734,7 @@ function advanceStopDialog() {
     return;
   }
 
-  // если линий больше нет — закрываем, НО только если нет choices
   if (stopDialogState.choices && stopDialogState.choices.length) {
-    // ничего: ждём выбор
     return;
   }
 
@@ -763,7 +759,6 @@ function renderStopDialog() {
 
   chs.innerHTML = "";
 
-  // если есть ещё строки — показываем кнопку "Далее"
   const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
   if (hasMore) {
     const nextBtn = document.createElement("button");
@@ -774,7 +769,6 @@ function renderStopDialog() {
     chs.appendChild(nextBtn);
   }
 
-  // choices показываем только на последней строке (как в новеллах)
   const isLastLine = stopDialogState.lineIndex >= stopDialogState.lines.length - 1;
   if (isLastLine && stopDialogState.choices && stopDialogState.choices.length) {
     for (const c of stopDialogState.choices) {
@@ -825,7 +819,6 @@ function renderInventoryUI() {
     return;
   }
 
-  // горизонтальные слоты
   for (const it of inv) {
     const slot = document.createElement("button");
     slot.type = "button";
@@ -857,6 +850,142 @@ function renderInventoryUI() {
   }
 }
 
+/* ===== dialogs wiring helpers (from StopDialogs) ===== */
+
+function openHub0NpcIntroDialog() {
+  const D = window.StopDialogs;
+
+  if (!D || typeof D.hub0Intro !== "function") {
+    // fallback на всякий случай
+    openStopDialogVN(
+      ["Местный: “Привет.”", "“Следи за ресурсами.”"],
+      [{ id: "ok", label: "Ок", onPick: () => closeStopDialog() }],
+      { lockMovement: true }
+    );
+    return;
+  }
+
+  const intro = D.hub0Intro();
+  openStopDialogVN(
+    intro.lines,
+    [
+      {
+        id: "tips",
+        label: "Дай конкретику",
+        onPick: () => {
+          const concrete = D.hub0IntroConcrete();
+          openStopDialogVN(
+            concrete.lines,
+            concrete.choices.map((c) => ({
+              id: c.id,
+              label: c.label,
+              onPick: () => closeStopDialog()
+            })),
+            { lockMovement: true }
+          );
+        }
+      },
+      { id: "bye", label: "Ок", onPick: () => closeStopDialog() }
+    ],
+    { lockMovement: true }
+  );
+}
+
+function openNpcGenericDialog() {
+  const D = window.StopDialogs;
+
+  const root = D && typeof D.npcGenericRoot === "function" ? D.npcGenericRoot() : null;
+  const about = D && typeof D.npcAboutPlace === "function" ? D.npcAboutPlace() : null;
+  const mech = D && typeof D.npcMechanicsShort === "function" ? D.npcMechanicsShort() : null;
+  const danger = D && typeof D.npcAboutHitchhikers === "function" ? D.npcAboutHitchhikers() : null;
+
+  if (!root) {
+    openStopDialogVN(
+      ["Местный: “Привет.”"],
+      [{ id: "ok", label: "Ок", onPick: () => closeStopDialog() }],
+      { lockMovement: true }
+    );
+    return;
+  }
+
+  openStopDialogVN(
+    root.lines,
+    [
+      {
+        id: "about",
+        label: "Что за место?",
+        onPick: () => {
+          if (!about) {
+            closeStopDialog();
+            return;
+          }
+          openStopDialogVN(
+            about.lines,
+            [
+              {
+                id: "tips2",
+                label: "Ок, а по механикам?",
+                onPick: () => {
+                  if (!mech) {
+                    closeStopDialog();
+                    return;
+                  }
+                  openStopDialogVN(
+                    mech.lines,
+                    [{ id: "ok", label: "Понял", onPick: () => closeStopDialog() }],
+                    { lockMovement: true }
+                  );
+                }
+              },
+              { id: "bye", label: "Уйти", onPick: () => closeStopDialog() }
+            ],
+            { lockMovement: true }
+          );
+        }
+      },
+      {
+        id: "danger",
+        label: "Про попутчиков?",
+        onPick: () => {
+          if (!danger) {
+            closeStopDialog();
+            return;
+          }
+          openStopDialogVN(
+            danger.lines,
+            [{ id: "ok", label: "Ясно", onPick: () => closeStopDialog() }],
+            { lockMovement: true }
+          );
+        }
+      },
+      { id: "bye0", label: "Уйти", onPick: () => closeStopDialog() }
+    ],
+    { lockMovement: true }
+  );
+}
+
+function openTrashDialogFirst() {
+  const D = window.StopDialogs;
+  const t = D && typeof D.trashFirstTime === "function" ? D.trashFirstTime() : null;
+
+  openStopDialogVN(
+    t ? t.lines : ["Ты роешься в мусорке.", "Находка!"],
+    [{ id: "take", label: "Забрать", onPick: () => closeStopDialog() }],
+    { lockMovement: true }
+  );
+}
+
+function openTrashDialogAgain() {
+  const D = window.StopDialogs;
+  const t = D && typeof D.trashAgain === "function" ? D.trashAgain() : null;
+
+  openStopDialogVN(
+    t ? t.lines : ["Ничего полезного."],
+    [{ id: "ok", label: "Ладно", onPick: () => closeStopDialog() }],
+    { lockMovement: true }
+  );
+}
+
 /* ===== main render ===== */
 
 function renderStopHub(dt) {
@@ -870,6 +999,11 @@ function renderStopHub(dt) {
   if (stopToastTimer > 0) {
     stopToastTimer -= dt;
     if (stopToastTimer <= 0) hideStopToast();
+  }
+
+  if (stopInteractCooldown > 0) {
+    stopInteractCooldown -= dt;
+    if (stopInteractCooldown < 0) stopInteractCooldown = 0;
   }
 
   const ctx = stopCtx;
@@ -906,52 +1040,25 @@ function renderStopHub(dt) {
 
     state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
     state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
+
+    // при входе в новый хаб — сброс подсказок выхода (чисто локально)
+    stopLocalFlags.hub0ExitHintShown = false;
   }
 
-  // === авто-интро (хаб 0): показываем ОДИН раз после первого выхода из машины
-  // чтобы это было именно "NPC проводит инструктаж", но не ломало механику "сначала выйти".
+  // хаб 0: вместо "диалога с воздуха" — только подсказки.
   const isHub0 = (hubCfg.pointIndex === 0);
+
   if (isHub0 && !stopLocalFlags.introShownAtHub0 && state.hub.inCar) {
-    // мягкое напоминание, без диалога (диалог будет после выхода)
     stopLocalFlags.introShownAtHub0 = true;
     showStopToast("Нажми E у машины, чтобы выйти. Рядом местный — он объяснит правила.", "info");
   }
-  if (isHub0 && !stopLocalFlags.introShownAfterExitHub0 && !state.hub.inCar) {
-    stopLocalFlags.introShownAfterExitHub0 = true;
 
-    openStopDialogVN(
-      [
-        "Местный: “Эй, путник. Зимой тут всё решают ресурсы.”",
-        "“Топливо — чтобы вообще доехать. Сытость и бодрость — чтобы не свалиться в канаву.”",
-        "“На остановках заходи в здания по тонкой полосе у входа и жми E.”",
-        "“На карте (M) выбирай следующую точку, если хватает топлива.”",
-        "“И запомни: не каждый попутчик одинаково безопасен.”"
-      ],
-      [
-        {
-          id: "tips",
-          label: "Дай конкретику",
-          onPick: () => {
-            openStopDialogVN(
-              [
-                "Местный: “Ладно.”",
-                "• Заправка: +10 топлива за 10₽",
-                "• Еда: +40 сытости за 10₽",
-                "• Гостиница: бодрость до 100 за 25₽ (и -10 сытости)",
-                "• Подработка: +30₽, но -10 сытости и -10 бодрости",
-                "“Если денег мало — подработка спасает. Если сил мало — гостиница.”"
-              ],
-              [{ id: "ok", label: "Понял", onPick: () => closeStopDialog() }]
-            );
-          }
-        },
-        { id: "bye", label: "Ок", onPick: () => closeStopDialog() }
-      ],
-      { lockMovement: true }
-    );
+  // после выхода: только toast, диалог будет ТОЛЬКО при E у NPC
+  if (isHub0 && !stopLocalFlags.hub0ExitHintShown && !state.hub.inCar) {
+    stopLocalFlags.hub0ExitHintShown = true;
+    showStopToast("Подойди к местному у заправки и нажми E, чтобы поговорить.", "info");
   }
 
-  // если открыт диалог и он лочит — не двигаем
   const movementLocked = stopDialogState.open && stopDialogState.lockMovement;
 
   const speed = state.hub.speed;
@@ -1010,7 +1117,6 @@ function renderStopHub(dt) {
     state.hub.y = prevY;
   }
 
-  // коллизия с solid props
   if (!state.hub.inCar && props && props.length) {
     for (const p of props) {
       if (!p.solid) continue;
@@ -1031,7 +1137,6 @@ function renderStopHub(dt) {
 
   const themeKey = hubCfg.themeKey || "";
 
-  // tiles + roads
   for (let y = 0; y < layout.rows; y++) {
     for (let x = 0; x < layout.cols; x++) {
       const ch = getMapChar(hubCfg.grid, x, y);
@@ -1054,7 +1159,6 @@ function renderStopHub(dt) {
     }
   }
 
-  // debug grid
   if (HUB_DEBUG_DRAW_GRID) {
     ctx.save();
     ctx.strokeStyle = "rgba(148,163,184,0.55)";
@@ -1076,7 +1180,6 @@ function renderStopHub(dt) {
     ctx.restore();
   }
 
-  // props (sub-cell) + rotation support
   if (props && props.length) {
     for (const p of props) {
       const img = p.spriteKey ? sprites[p.spriteKey] : null;
@@ -1090,7 +1193,6 @@ function renderStopHub(dt) {
   let currentHint = "";
   let currentTitle = "";
 
-  // buildings
   buildings.forEach((poi) => {
     const isInsideBand = isNearPOI(poi);
 
@@ -1130,7 +1232,6 @@ function renderStopHub(dt) {
     }
   });
 
-  // props interaction hint/title
   if (!state.hub.inCar && props && props.length) {
     const nearProp = props.find((p) => isNearProp(p));
     if (nearProp) {
@@ -1144,7 +1245,6 @@ function renderStopHub(dt) {
     }
   }
 
-  // car
   if (car) {
     const carSprite = sprites.car;
     if (carSprite && carSprite.complete && carSprite.naturalWidth > 0) {
@@ -1160,7 +1260,6 @@ function renderStopHub(dt) {
     }
   }
 
-  // player
   if (!state.hub.inCar) {
     const px = state.hub.x;
     const py = state.hub.y;
@@ -1201,10 +1300,10 @@ function renderStopHub(dt) {
 function handleHubInteract() {
   if (!stopCanvas) return;
 
-  // если открыт диалог:
-  // - если есть "Далее" -> E = следующий шаг
-  // - если нет "Далее" и нет выбора -> E закрывает
-  // - если есть выбор -> E ничего не делает (ждём выбор кнопками)
+  // анти-даблклик / анти-автоповтор
+  if (stopInteractCooldown > 0) return;
+  stopInteractCooldown = STOP_INTERACT_COOLDOWN_SEC;
+
   if (stopDialogState.open) {
     const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
     const hasChoices = stopDialogState.choices && stopDialogState.choices.length;
@@ -1306,9 +1405,6 @@ function handleHubInteract() {
   if (props && props.length) {
     const nearProp = props.find((p) => isNearProp(p));
     if (nearProp) {
-      // мусорка: делаем предсказуемо.
-      // - первый раз: гарантируем находку (чтобы не было "почему не с первого раза")
-      // - дальше: "ничего полезного"
       if (nearProp.id === "trash_near_cafe" || nearProp.kind === "trash") {
         if (!stopLocalFlags.trashSearchedOnce) {
           stopLocalFlags.trashSearchedOnce = true;
@@ -1327,85 +1423,30 @@ function handleHubInteract() {
           renderInventoryUI();
 
           showStopToast("Найден предмет: Испорченный сэндвич", "good");
-          openStopDialogVN(
-            [
-              "Ты роешься в мусорке и находишь что-то, завернутое в бумагу.",
-              "Сэндвич выглядит сомнительно, но это всё ещё еда."
-            ],
-            [{ id: "take", label: "Забрать", onPick: () => closeStopDialog() }],
-            { lockMovement: true }
-          );
+          openTrashDialogFirst();
         } else {
           showStopToast("Ничего полезного.", "info");
-          openStopDialogVN(
-            ["Ты роешься ещё раз.", "Ничего полезного."],
-            [{ id: "ok", label: "Ладно", onPick: () => closeStopDialog() }],
-            { lockMovement: true }
-          );
+          openTrashDialogAgain();
         }
         return;
       }
 
-      // NPC: диалог-обучалка (VN-ветки)
       if (nearProp.id === "npc_instructor_gas" || nearProp.kind === "npc") {
+        const isHub0 = (hubCfg.pointIndex === 0);
+
+        // ВАЖНО: интро для хаба 0 — только при реальном взаимодействии с NPC
+        if (isHub0 && !stopLocalFlags.hub0NpcIntroDialogShown) {
+          stopLocalFlags.hub0NpcIntroDialogShown = true;
+          showStopToast("Разговор", "info");
+          openHub0NpcIntroDialog();
+          return;
+        }
+
         showStopToast("Разговор", "info");
-
-        openStopDialogVN(
-          [
-            "Местный: “Привет. По глазам вижу — ты в дороге впервые.”",
-            "“На остановках всё простое: тротуар, вход, тонкая полоса у здания — и E.”",
-            "“Но главное — следи за ресурсами. Зимой они утекают быстрее, чем кажется.”"
-          ],
-          [
-            {
-              id: "about",
-              label: "Что за место?",
-              onPick: () => {
-                openStopDialogVN(
-                  [
-                    "Местный: “Трасса длинная. Между городками — пустота и холод.”",
-                    "“Тут не геройствуют. Тут доезжают.”"
-                  ],
-                  [
-                    { id: "tips2", label: "Ок, а по механикам?", onPick: () => {
-                      openStopDialogVN(
-                        [
-                          "• Заправка: +10 топлива за 10₽",
-                          "• Еда: +40 сытости за 10₽",
-                          "• Гостиница: бодрость до 100 за 25₽ (и -10 сытости)",
-                          "• Подработка: +30₽, но -10 сытости и -10 бодрости",
-                          "“На карте (M) выбирай следующую точку, если хватает топлива.”"
-                        ],
-                        [{ id: "ok", label: "Понял", onPick: () => closeStopDialog() }]
-                      );
-                    } },
-                    { id: "bye", label: "Уйти", onPick: () => closeStopDialog() }
-                  ]
-                );
-              }
-            },
-            {
-              id: "danger",
-              label: "Про попутчиков?",
-              onPick: () => {
-                openStopDialogVN(
-                  [
-                    "Местный: “Те, кто платит слишком щедро — часто платят за молчание.”",
-                    "“Если сомневаешься — лучше проехать мимо.”"
-                  ],
-                  [{ id: "ok", label: "Ясно", onPick: () => closeStopDialog() }]
-                );
-              }
-            },
-            { id: "bye0", label: "Уйти", onPick: () => closeStopDialog() }
-          ],
-          { lockMovement: true }
-        );
-
+        openNpcGenericDialog();
         return;
       }
 
-      // generic prop
       if (nearProp.hint) {
         openStopDialogVN([nearProp.hint], [
           { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
@@ -1415,7 +1456,7 @@ function handleHubInteract() {
     }
   }
 
-  // ===== здания: интеракт ТОЛЬКО если игрок реально в полосе =====
+  // ===== здания =====
   const nearPoi = buildings.find((b) => isNearPOI(b));
   if (!nearPoi) return;
 
@@ -1537,7 +1578,6 @@ function initStopSceneUI() {
   renderStopDialog();
   ensureStopToastEl();
 
-  // аватар
   const avatarEl = qid("playerAvatar");
   if (avatarEl) {
     const cfg = typeof getCharacterById === "function" ? getCharacterById(state.selectedCharacterId || "tourist") : null;
@@ -1573,7 +1613,6 @@ function ensureStopSceneBound() {
       handleHubInteract();
     }
 
-    // Enter / Space -> как "Далее" в новелле, если диалог открыт и есть следующая строка
     if (e.code === "Enter" || e.code === "Space") {
       if (stopDialogState.open) {
         const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
