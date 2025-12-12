@@ -218,46 +218,6 @@ function getCharacterById(id) {
 /**
  * ===== Хабы на сетке (ASCII) =====
  *
- * Сетка фиксирована по размеру: 10x6 (колонки x строки).
- * ВАЖНО: Рисуется квадратными ячейками, а вся сетка центрируется (letterbox),
- * чтобы не ломать пропорцию/растяжение старой сцены.
- *
- * Легенда тайлов:
- *   # — дорога (road)
- *   s — тротуар (sidewalk)
- *   . — снег (snow)
- *   g — трава (grass)
- *
- * Объекты (занимают клетки):
- *   G — gas (заправка)
- *   F — food (еда)
- *   H — hotel (гостиница)
- *   W — work (подработка)
- *   C — машина игрока (car spawn)
- *
- * Мультиклеточные здания:
- *   просто рисуй букву прямоугольником (например 2x2 GGGG и т.п.).
- *
- * @typedef {'gas'|'food'|'hotel'|'work'} HubBuildingType
- *
- * @typedef {{
- *   id: string;
- *   type: HubBuildingType;
- *   label: string;
- *   hint: string;
- *   spriteKey?: string;
- * }} HubBuildingMeta
- *
- * @typedef {{
- *   pointIndex: number;
- *   themeKey: string; // префикс спрайтов тайлов/дорог для конкретного хаба: hub0, hub1, ...
- *   grid: string[];   // ASCII-карта, 6 строк по 10 символов
- * }} HubGridConfig
- */
-
-/**
- * ===== Хабы на сетке (ASCII) =====
- *
  * Сетка фиксирована по размеру: 16x6 (колонки x строки).
  * ВАЖНО: строки ASCII должны быть РОВНО 16 символов.
  *
@@ -283,14 +243,36 @@ function getCharacterById(id) {
  *   id: string;
  *   type: HubBuildingType;
  *   label: string;
- *   hint: string;
+ *   hint: string;      // <-- ВАЖНО: подсказки (то, что ты просил вернуть)
  *   spriteKey?: string;
  * }} HubBuildingMeta
  *
+ * @typedef {'npc'|'trash'|'decor'} HubPropKind
+ *
+ * @typedef {{
+ *   id: string;
+ *   kind: HubPropKind;
+ *   label: string;
+ *   hint: string;      // <-- ВАЖНО: подсказки (то, что ты просил вернуть)
+ *   cx: number;        // cell x
+ *   cy: number;        // cell y
+ *   relX: number;      // 0..1 внутри клетки
+ *   relY: number;      // 0..1 внутри клетки
+ *   relW: number;      // 0..1 ширина внутри клетки
+ *   relH: number;      // 0..1 высота внутри клетки
+ *   spriteKey: string;
+ *   solid: boolean;
+ *   // опционально: направление (если нужно ориентировать спрайт/NPC)
+ *   dir?: 'up'|'down'|'left'|'right';
+ *   angleDeg?: number;
+ *   snap8?: boolean;
+ * }} HubPropConfig
+ *
  * @typedef {{
  *   pointIndex: number;
- *   themeKey: string;
- *   grid: string[];   // ASCII-карта, 6 строк по 16 символов
+ *   themeKey: string;   // префикс спрайтов тайлов/дорог для конкретного хаба: hub0, hub1, ...
+ *   grid: string[];     // ASCII-карта, 6 строк по 16 символов
+ *   props?: HubPropConfig[];
  * }} HubGridConfig
  */
 
@@ -311,8 +293,10 @@ const hubBuildingMetaByChar = {
  * 10 хабов: ASCII 16x6.
  * Тут сохранена твоя исходная 10x6 компоновка, просто добавлены поля по 3 клетки снега слева и справа:
  *   "..." + (старые 10 символов) + "..."
+ *
+ * @type {HubGridConfig[]}
  */
-const hubGridConfigs = /** @type {HubGridConfig[]} */ ([
+const hubGridConfigs = [
   {
     pointIndex: 0,
     themeKey: "hub0",
@@ -323,6 +307,46 @@ const hubGridConfigs = /** @type {HubGridConfig[]} */ ([
       ".HHssss#....#...",
       ".HH....#....#...",
       ".......###C##..."
+    ],
+    props: [
+      // NPC-инструктор рядом с заправкой: меньше, как игрок, смещён к заправке (к правому краю клетки)
+      {
+        id: "npc_instructor_gas",
+        kind: "npc",
+        label: "Местный",
+        hint: "E — поговорить",
+        cx: 3,
+        cy: 1,
+
+        relX: 0.62,
+        relY: 0.28,
+        relW: 0.26,
+        relH: 0.26,
+
+        spriteKey: "prop_npc",
+        solid: true,
+
+        // направление (если используешь)
+        dir: "down"
+      },
+
+      // Мусорка рядом с кафе: маленькая, "прислонена" к стене кафе (левый край клетки)
+      {
+        id: "trash_near_cafe",
+        kind: "trash",
+        label: "Мусорка",
+        hint: "E — порыться",
+        cx: 11,
+        cy: 2,
+
+        relX: 0.02,
+        relY: 0.58,
+        relW: 0.22,
+        relH: 0.30,
+
+        spriteKey: "prop_trash",
+        solid: true
+      }
     ]
   },
   {
@@ -433,8 +457,12 @@ const hubGridConfigs = /** @type {HubGridConfig[]} */ ([
       "...##C###......."
     ]
   }
-]);
+];
 
+/**
+ * @param {number} pointIndex
+ * @returns {HubGridConfig}
+ */
 function getHubGridConfig(pointIndex) {
   const idx = Math.max(0, Math.min(pointIndex || 0, hubGridConfigs.length - 1));
   return hubGridConfigs[idx];

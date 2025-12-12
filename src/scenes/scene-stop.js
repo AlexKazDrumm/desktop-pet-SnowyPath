@@ -5,16 +5,48 @@
  * - ASCII-редактор из game-data.js (hubGridConfigs)
  * - повороты дорог + перекрёстки
  * - здания (мультиклетки поддерживаются)
- * - коллизии (здания непроходимы)
+ * - props внутри хаба (мусорка, NPC и т.п.) из hubCfg.props
+ * - коллизии (здания непроходимы, props solid — непроходимы)
  * - интеракт по соседству и с машиной
- * - debug сетка
- *
- * Легенда символов ASCII — см. комментарии в src/data/game-data.js (игроку в UI это не показываем).
+ * - UI: подсказка, название активного объекта, инвентарь (toggle), статы, диалог, toast
  */
 
 const HUB_DEBUG_DRAW_GRID = true;
-
 const STOP_BOTTOM_BAR_MIN_HEIGHT = 172;
+
+let stopInventoryOpen = false;
+let stopUiInited = false;
+
+/** локальные флаги сцены (не трогаем глобальный state) */
+const stopLocalFlags = {
+  introShownAtHub0: false,
+  introShownAfterExitHub0: false,
+  trashSandwichFound: false,
+  trashSearchedOnce: false
+};
+
+/** локальное состояние диалога (VN-стиль: реплики -> далее -> выбор) */
+let stopDialogState = {
+  open: false,
+
+  /** @type {string[]} */
+  lines: [],
+  lineIndex: 0,
+
+  /** текущая строка для рендера (кеш) */
+  text: "",
+
+  /** @type {Array<{id:string; label:string; onPick:()=>void}>} */
+  choices: [],
+
+  /** если true — игрок не двигается пока открыт диалог */
+  lockMovement: true,
+
+  /** если есть "скрипт" — по закрытию можно повесить обработчик */
+  onClose: null
+};
+
+let stopToastTimer = 0;
 
 /**
  * Получить текущий конфиг хаба на сетке
@@ -449,9 +481,8 @@ function computeHubBuildingsFromCells(layout, buildings) {
 }
 
 /**
- * Опциональные props внутри хаба (субклеточные объекты).
- * Формат hubCfg.props:
- *   [{id,cx,cy,relX,relY,relW,relH,spriteKey,solid}]
+ * Props внутри хаба (субклеточные объекты) из hubCfg.props
+ * + поддержка angle/dir (поворот NPC/prop)
  *
  * @param {ReturnType<typeof getHubGridConfig>} hubCfg
  * @param {ReturnType<typeof computeGridLayout>} layout
@@ -469,12 +500,33 @@ function computeHubProps(hubCfg, layout) {
 
     const r = cellToSubRect(p.cx, p.cy, layout, relX, relY, relW, relH);
 
+    // angle:
+    // - если задан p.angleRad -> используем
+    // - если задан p.angleDeg -> конвертим
+    // - если задан p.dir ("up"/"down"/"left"/"right") -> ставим кратно 90
+    let angle = 0;
+    if (typeof p.angleRad === "number") angle = p.angleRad;
+    else if (typeof p.angleDeg === "number") angle = (p.angleDeg * Math.PI) / 180;
+    else if (typeof p.dir === "string") {
+      if (p.dir === "right") angle = 0;
+      else if (p.dir === "down") angle = Math.PI / 2;
+      else if (p.dir === "left") angle = Math.PI;
+      else if (p.dir === "up") angle = -Math.PI / 2;
+    }
+
+    // можно сразу привязать к 8 направлениям, если нужно
+    if (p.snap8) angle = snapAngleTo8Directions(angle);
+
     res.push({
       id: String(p.id || `prop_${p.cx}_${p.cy}_${relX}_${relY}`),
+      kind: p.kind || "prop",
+      label: p.label || "",
+      hint: p.hint || "",
       cx: p.cx,
       cy: p.cy,
       spriteKey: p.spriteKey || null,
       solid: !!p.solid,
+      angle,
       x: r.x,
       y: r.y,
       w: r.w,
@@ -497,6 +549,22 @@ function isNearPOI(poi) {
   );
 }
 
+function isNearProp(p) {
+  const px = state.hub.x;
+  const py = state.hub.y;
+
+  // меньше паддинги, чтобы “прижаться к стене” было реально удобно
+  const padX = Math.max(6, p.w * 0.45);
+  const padY = Math.max(6, p.h * 0.55);
+
+  return pointInRect(px, py, {
+    x: p.x - padX,
+    y: p.y - padY,
+    w: p.w + padX * 2,
+    h: p.h + padY * 2
+  });
+}
+
 function drawTile(ctx, img, x, y, s) {
   if (img && img.complete && img.naturalWidth > 0) {
     ctx.drawImage(img, x, y, s, s);
@@ -517,6 +585,25 @@ function drawRotatedTile(ctx, img, x, y, s, rot) {
     ctx.fillStyle = "#111827";
     ctx.fillRect(x, y, s, s);
   }
+}
+
+function drawRotatedSprite(ctx, img, x, y, w, h, angle) {
+  if (!img || !img.complete || img.naturalWidth <= 0) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(250,204,21,0.6)";
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+    return;
+  }
+  if (!angle) {
+    ctx.drawImage(img, x, y, w, h);
+    return;
+  }
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  ctx.rotate(angle);
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  ctx.restore();
 }
 
 /**
@@ -551,8 +638,239 @@ function isValidStandPoint(hubCfg, layout, x, y, car, props) {
   return true;
 }
 
+/* ===== UI helpers ===== */
+
+function setStopObjectTitle(text) {
+  const el = qid("stopObjectTitle");
+  if (!el) return;
+  el.textContent = text || "";
+}
+
+function setStopHint(text) {
+  const el = qid("stopHint");
+  if (!el) return;
+  el.textContent = text || "";
+}
+
+function ensureStopToastEl() {
+  const root = qid("screen-stop");
+  if (!root) return null;
+
+  let el = qid("stopToast");
+  if (el) return el;
+
+  el = document.createElement("div");
+  el.id = "stopToast";
+  el.className = "stop-toast hidden";
+  root.appendChild(el);
+
+  return el;
+}
+
+function showStopToast(text, kind) {
+  const el = ensureStopToastEl();
+  if (!el) return;
+
+  el.textContent = String(text || "");
+  el.classList.remove("hidden");
+
+  el.classList.remove("good", "bad", "info");
+  if (kind === "good") el.classList.add("good");
+  else if (kind === "bad") el.classList.add("bad");
+  else el.classList.add("info");
+
+  stopToastTimer = 2.2;
+}
+
+function hideStopToast() {
+  const el = qid("stopToast");
+  if (!el) return;
+  el.classList.add("hidden");
+  el.textContent = "";
+  stopToastTimer = 0;
+}
+
+/* ===== VN dialog engine ===== */
+
+function openStopDialogVN(lines, choices, opts) {
+  const safeLines = Array.isArray(lines) ? lines.map((x) => String(x ?? "")) : [String(lines ?? "")];
+
+  stopDialogState.open = true;
+  stopDialogState.lines = safeLines.filter((x) => x.length > 0);
+  if (!stopDialogState.lines.length) stopDialogState.lines = [""];
+  stopDialogState.lineIndex = 0;
+  stopDialogState.text = stopDialogState.lines[0] || "";
+  stopDialogState.choices = Array.isArray(choices) ? choices : [];
+  stopDialogState.lockMovement = opts && typeof opts.lockMovement === "boolean" ? opts.lockMovement : true;
+  stopDialogState.onClose = opts && typeof opts.onClose === "function" ? opts.onClose : null;
+
+  renderStopDialog();
+}
+
+function closeStopDialog() {
+  const onClose = stopDialogState.onClose;
+
+  stopDialogState.open = false;
+  stopDialogState.lines = [];
+  stopDialogState.lineIndex = 0;
+  stopDialogState.text = "";
+  stopDialogState.choices = [];
+  stopDialogState.lockMovement = true;
+  stopDialogState.onClose = null;
+
+  renderStopDialog();
+
+  if (onClose) {
+    try { onClose(); } catch (e) { console.error(e); }
+  }
+}
+
+function advanceStopDialog() {
+  if (!stopDialogState.open) return;
+
+  const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
+  if (hasMore) {
+    stopDialogState.lineIndex += 1;
+    stopDialogState.text = stopDialogState.lines[stopDialogState.lineIndex] || "";
+    renderStopDialog();
+    return;
+  }
+
+  // если линий больше нет — закрываем, НО только если нет choices
+  if (stopDialogState.choices && stopDialogState.choices.length) {
+    // ничего: ждём выбор
+    return;
+  }
+
+  closeStopDialog();
+}
+
+function renderStopDialog() {
+  const dlg = qid("stopDialog");
+  const txt = qid("stopDialogText");
+  const chs = qid("stopDialogChoices");
+  if (!dlg || !txt || !chs) return;
+
+  if (!stopDialogState.open) {
+    dlg.classList.add("hidden");
+    txt.textContent = "";
+    chs.innerHTML = "";
+    return;
+  }
+
+  dlg.classList.remove("hidden");
+  txt.textContent = stopDialogState.text;
+
+  chs.innerHTML = "";
+
+  // если есть ещё строки — показываем кнопку "Далее"
+  const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
+  if (hasMore) {
+    const nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.className = "primary";
+    nextBtn.textContent = "Далее";
+    nextBtn.addEventListener("click", () => advanceStopDialog());
+    chs.appendChild(nextBtn);
+  }
+
+  // choices показываем только на последней строке (как в новеллах)
+  const isLastLine = stopDialogState.lineIndex >= stopDialogState.lines.length - 1;
+  if (isLastLine && stopDialogState.choices && stopDialogState.choices.length) {
+    for (const c of stopDialogState.choices) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "primary";
+      btn.textContent = c.label;
+      btn.addEventListener("click", () => {
+        try { c.onPick && c.onPick(); } catch (e) { console.error(e); }
+      });
+      chs.appendChild(btn);
+    }
+  }
+}
+
+/* ===== inventory ===== */
+
+function toggleInventoryUI(force) {
+  if (typeof force === "boolean") stopInventoryOpen = force;
+  else stopInventoryOpen = !stopInventoryOpen;
+
+  const panel = qid("inventoryPanel");
+  const btn = qid("btnToggleInventory");
+  if (!panel || !btn) return;
+
+  if (stopInventoryOpen) {
+    panel.style.display = "flex";
+    btn.textContent = "Инвентарь (I) ▴";
+  } else {
+    panel.style.display = "none";
+    btn.textContent = "Инвентарь (I) ▾";
+  }
+}
+
+function renderInventoryUI() {
+  const panel = qid("inventoryPanel");
+  if (!panel) return;
+
+  const inv = Array.isArray(state.inventory) ? state.inventory : [];
+
+  panel.innerHTML = "";
+
+  if (!inv.length) {
+    const empty = document.createElement("div");
+    empty.className = "inventory-empty";
+    empty.textContent = "Пусто";
+    panel.appendChild(empty);
+    return;
+  }
+
+  // горизонтальные слоты
+  for (const it of inv) {
+    const slot = document.createElement("button");
+    slot.type = "button";
+    slot.className = "inventory-slot";
+    slot.title = `${it.name || it.id || "Предмет"}${it.description ? ` — ${it.description}` : ""}`;
+
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "inventory-slot-iconwrap";
+
+    const icon = document.createElement("img");
+    icon.className = "inventory-icon";
+    icon.alt = it.name || it.id || "item";
+    icon.width = 24;
+    icon.height = 24;
+    icon.style.imageRendering = "pixelated";
+    if (it.iconKey && sprites[it.iconKey]) {
+      icon.src = sprites[it.iconKey].src;
+    }
+    iconWrap.appendChild(icon);
+
+    const name = document.createElement("div");
+    name.className = "inventory-slot-name";
+    name.textContent = it.name || it.id || "Предмет";
+
+    slot.appendChild(iconWrap);
+    slot.appendChild(name);
+
+    panel.appendChild(slot);
+  }
+}
+
+/* ===== main render ===== */
+
 function renderStopHub(dt) {
   if (!stopCtx || !stopCanvas) return;
+
+  if (!stopUiInited) {
+    initStopSceneUI();
+    stopUiInited = true;
+  }
+
+  if (stopToastTimer > 0) {
+    stopToastTimer -= dt;
+    if (stopToastTimer <= 0) hideStopToast();
+  }
 
   const ctx = stopCtx;
   const w = stopCanvas.width;
@@ -573,6 +891,7 @@ function renderStopHub(dt) {
   const car = computeHubCarFromCell(parsed.carCell, layout);
   const props = computeHubProps(hubCfg, layout);
 
+  // при смене точки — спавним в машине
   if (state.hub.hubPointIndex !== hubCfg.pointIndex) {
     if (car) {
       state.hub.x = car.x + car.w / 2;
@@ -589,11 +908,57 @@ function renderStopHub(dt) {
     state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
   }
 
+  // === авто-интро (хаб 0): показываем ОДИН раз после первого выхода из машины
+  // чтобы это было именно "NPC проводит инструктаж", но не ломало механику "сначала выйти".
+  const isHub0 = (hubCfg.pointIndex === 0);
+  if (isHub0 && !stopLocalFlags.introShownAtHub0 && state.hub.inCar) {
+    // мягкое напоминание, без диалога (диалог будет после выхода)
+    stopLocalFlags.introShownAtHub0 = true;
+    showStopToast("Нажми E у машины, чтобы выйти. Рядом местный — он объяснит правила.", "info");
+  }
+  if (isHub0 && !stopLocalFlags.introShownAfterExitHub0 && !state.hub.inCar) {
+    stopLocalFlags.introShownAfterExitHub0 = true;
+
+    openStopDialogVN(
+      [
+        "Местный: “Эй, путник. Зимой тут всё решают ресурсы.”",
+        "“Топливо — чтобы вообще доехать. Сытость и бодрость — чтобы не свалиться в канаву.”",
+        "“На остановках заходи в здания по тонкой полосе у входа и жми E.”",
+        "“На карте (M) выбирай следующую точку, если хватает топлива.”",
+        "“И запомни: не каждый попутчик одинаково безопасен.”"
+      ],
+      [
+        {
+          id: "tips",
+          label: "Дай конкретику",
+          onPick: () => {
+            openStopDialogVN(
+              [
+                "Местный: “Ладно.”",
+                "• Заправка: +10 топлива за 10₽",
+                "• Еда: +40 сытости за 10₽",
+                "• Гостиница: бодрость до 100 за 25₽ (и -10 сытости)",
+                "• Подработка: +30₽, но -10 сытости и -10 бодрости",
+                "“Если денег мало — подработка спасает. Если сил мало — гостиница.”"
+              ],
+              [{ id: "ok", label: "Понял", onPick: () => closeStopDialog() }]
+            );
+          }
+        },
+        { id: "bye", label: "Ок", onPick: () => closeStopDialog() }
+      ],
+      { lockMovement: true }
+    );
+  }
+
+  // если открыт диалог и он лочит — не двигаем
+  const movementLocked = stopDialogState.open && stopDialogState.lockMovement;
+
   const speed = state.hub.speed;
   let vx = 0;
   let vy = 0;
 
-  if (!state.hub.inCar) {
+  if (!state.hub.inCar && !movementLocked) {
     if (keysPressed["KeyW"] || keysPressed["ArrowUp"]) vy -= 1;
     if (keysPressed["KeyS"] || keysPressed["ArrowDown"]) vy += 1;
     if (keysPressed["KeyA"] || keysPressed["ArrowLeft"]) vx -= 1;
@@ -616,7 +981,6 @@ function renderStopHub(dt) {
     state.hub.angle = snapAngleTo8Directions(Math.atan2(vy, vx));
   }
 
-  // ВАЖНО: сетка прибита к верху => minY от offsetY
   const margin = Math.max(6, Math.floor(layout.cellSize * 0.20));
   const minX = layout.offsetX + margin;
   const maxX = layout.offsetX + layout.gridW - margin;
@@ -646,7 +1010,7 @@ function renderStopHub(dt) {
     state.hub.y = prevY;
   }
 
-  // Коллизия с solid props
+  // коллизия с solid props
   if (!state.hub.inCar && props && props.length) {
     for (const p of props) {
       if (!p.solid) continue;
@@ -712,19 +1076,11 @@ function renderStopHub(dt) {
     ctx.restore();
   }
 
-  // props (sub-cell)
+  // props (sub-cell) + rotation support
   if (props && props.length) {
     for (const p of props) {
       const img = p.spriteKey ? sprites[p.spriteKey] : null;
-      if (img && img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, p.x, p.y, p.w, p.h);
-      } else {
-        // placeholder
-        ctx.save();
-        ctx.strokeStyle = "rgba(250,204,21,0.6)";
-        ctx.strokeRect(p.x, p.y, p.w, p.h);
-        ctx.restore();
-      }
+      drawRotatedSprite(ctx, img, p.x, p.y, p.w, p.h, p.angle || 0);
     }
   }
 
@@ -732,12 +1088,12 @@ function renderStopHub(dt) {
   ctx.textBaseline = "middle";
 
   let currentHint = "";
+  let currentTitle = "";
 
   // buildings
   buildings.forEach((poi) => {
-    const isInsideBand = isNearPOI(poi); // ВАЖНО: только реальный заход в прямоугольник
+    const isInsideBand = isNearPOI(poi);
 
-    // debug: зона взаимодействия
     ctx.save();
     ctx.setLineDash([6, 4]);
     ctx.strokeStyle = "rgba(148,163,184,0.9)";
@@ -747,7 +1103,6 @@ function renderStopHub(dt) {
     }
     ctx.restore();
 
-    // подсветка — только если реально внутри interactRect
     if (isInsideBand && !state.hub.inCar && poi.interactW > 0 && poi.interactH > 0) {
       ctx.fillStyle = "rgba(34,197,94,0.16)";
       ctx.fillRect(poi.interactX, poi.interactY, poi.interactW, poi.interactH);
@@ -769,8 +1124,25 @@ function renderStopHub(dt) {
     ctx.textBaseline = "top";
     ctx.fillText(poi.label, labelX, labelY);
 
-    if (isInsideBand && !state.hub.inCar) currentHint = poi.hint;
+    if (isInsideBand && !state.hub.inCar) {
+      currentHint = poi.hint;
+      currentTitle = poi.label;
+    }
   });
+
+  // props interaction hint/title
+  if (!state.hub.inCar && props && props.length) {
+    const nearProp = props.find((p) => isNearProp(p));
+    if (nearProp) {
+      ctx.save();
+      ctx.fillStyle = "rgba(34,197,94,0.14)";
+      ctx.fillRect(nearProp.x, nearProp.y, nearProp.w, nearProp.h);
+      ctx.restore();
+
+      if (nearProp.label) currentTitle = nearProp.label;
+      if (nearProp.hint) currentHint = nearProp.hint;
+    }
+  }
 
   // car
   if (car) {
@@ -783,6 +1155,7 @@ function renderStopHub(dt) {
     }
 
     if (isNearCar(car)) {
+      currentTitle = "Машина";
       currentHint = state.hub.inCar ? "E — выйти из машины" : "E — сесть в машину";
     }
   }
@@ -810,20 +1183,41 @@ function renderStopHub(dt) {
     ctx.restore();
   }
 
-  // hint
-  const hintEl = qid("stopHint");
-  if (hintEl) {
-    hintEl.textContent =
-      (currentHint
-        ? currentHint
-        : (state.hub.inCar
-          ? "Подойди к машине и нажми E, чтобы выйти. M — открыть карту маршрута."
-          : "Зайди в зону под зданием (тонкая полоса) и нажми E. M — открыть карту маршрута."));
+  setStopObjectTitle(currentTitle);
+
+  if (currentHint) {
+    setStopHint(currentHint);
+  } else {
+    setStopHint(
+      (state.hub.inCar
+        ? "Подойди к машине и нажми E, чтобы выйти. M — открыть карту маршрута."
+        : "Зайди в зону под зданием (тонкая полоса) и нажми E. M — открыть карту маршрута.")
+    );
   }
 }
 
+/* ===== interactions ===== */
+
 function handleHubInteract() {
   if (!stopCanvas) return;
+
+  // если открыт диалог:
+  // - если есть "Далее" -> E = следующий шаг
+  // - если нет "Далее" и нет выбора -> E закрывает
+  // - если есть выбор -> E ничего не делает (ждём выбор кнопками)
+  if (stopDialogState.open) {
+    const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
+    const hasChoices = stopDialogState.choices && stopDialogState.choices.length;
+    if (hasMore) {
+      advanceStopDialog();
+      return;
+    }
+    if (!hasChoices) {
+      closeStopDialog();
+      return;
+    }
+    return;
+  }
 
   const hubCfg = getCurrentHubGridConfig();
   const layout = computeGridLayout(stopCanvas.width, stopCanvas.height);
@@ -838,11 +1232,9 @@ function handleHubInteract() {
   // ===== машина =====
   if (nearCar && car) {
     if (state.hub.inCar) {
-      // выйти из машины: рядом с машиной, а не в центр клетки
       const rPlayer = getPlayerRadius(layout);
       const gap = Math.max(3, Math.floor(layout.cellSize * 0.08));
 
-      /** @type {Array<{name:string; x:number; y:number}>} */
       const candidates = [
         { name: "right", x: car.x + car.w + gap + rPlayer, y: car.y + car.h / 2 },
         { name: "left",  x: car.x - gap - rPlayer,        y: car.y + car.h / 2 },
@@ -858,7 +1250,6 @@ function handleHubInteract() {
         break;
       }
 
-      // fallback: попробуем соседние клетки (но ставим ближе к границе)
       if (!chosen) {
         const carCell = parsed.carCell;
 
@@ -894,7 +1285,6 @@ function handleHubInteract() {
         }
       }
 
-      // крайний fallback: как было (в центр под машиной)
       if (!chosen) {
         chosen = { x: car.x + car.w / 2, y: car.y + car.h + Math.max(6, layout.cellSize * 0.2) };
       }
@@ -912,6 +1302,119 @@ function handleHubInteract() {
 
   if (state.hub.inCar) return;
 
+  // ===== props (мусорка / NPC) =====
+  if (props && props.length) {
+    const nearProp = props.find((p) => isNearProp(p));
+    if (nearProp) {
+      // мусорка: делаем предсказуемо.
+      // - первый раз: гарантируем находку (чтобы не было "почему не с первого раза")
+      // - дальше: "ничего полезного"
+      if (nearProp.id === "trash_near_cafe" || nearProp.kind === "trash") {
+        if (!stopLocalFlags.trashSearchedOnce) {
+          stopLocalFlags.trashSearchedOnce = true;
+
+          const found = {
+            id: "rotten_sandwich",
+            name: "Испорченный сэндвич",
+            iconKey: "item_rotten_sandwich",
+            description: "Пахнет ужасно. Но это еда… наверное."
+          };
+
+          state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
+          const exists = state.inventory.some((x) => x && x.id === found.id);
+          if (!exists) state.inventory.push(found);
+
+          renderInventoryUI();
+
+          showStopToast("Найден предмет: Испорченный сэндвич", "good");
+          openStopDialogVN(
+            [
+              "Ты роешься в мусорке и находишь что-то, завернутое в бумагу.",
+              "Сэндвич выглядит сомнительно, но это всё ещё еда."
+            ],
+            [{ id: "take", label: "Забрать", onPick: () => closeStopDialog() }],
+            { lockMovement: true }
+          );
+        } else {
+          showStopToast("Ничего полезного.", "info");
+          openStopDialogVN(
+            ["Ты роешься ещё раз.", "Ничего полезного."],
+            [{ id: "ok", label: "Ладно", onPick: () => closeStopDialog() }],
+            { lockMovement: true }
+          );
+        }
+        return;
+      }
+
+      // NPC: диалог-обучалка (VN-ветки)
+      if (nearProp.id === "npc_instructor_gas" || nearProp.kind === "npc") {
+        showStopToast("Разговор", "info");
+
+        openStopDialogVN(
+          [
+            "Местный: “Привет. По глазам вижу — ты в дороге впервые.”",
+            "“На остановках всё простое: тротуар, вход, тонкая полоса у здания — и E.”",
+            "“Но главное — следи за ресурсами. Зимой они утекают быстрее, чем кажется.”"
+          ],
+          [
+            {
+              id: "about",
+              label: "Что за место?",
+              onPick: () => {
+                openStopDialogVN(
+                  [
+                    "Местный: “Трасса длинная. Между городками — пустота и холод.”",
+                    "“Тут не геройствуют. Тут доезжают.”"
+                  ],
+                  [
+                    { id: "tips2", label: "Ок, а по механикам?", onPick: () => {
+                      openStopDialogVN(
+                        [
+                          "• Заправка: +10 топлива за 10₽",
+                          "• Еда: +40 сытости за 10₽",
+                          "• Гостиница: бодрость до 100 за 25₽ (и -10 сытости)",
+                          "• Подработка: +30₽, но -10 сытости и -10 бодрости",
+                          "“На карте (M) выбирай следующую точку, если хватает топлива.”"
+                        ],
+                        [{ id: "ok", label: "Понял", onPick: () => closeStopDialog() }]
+                      );
+                    } },
+                    { id: "bye", label: "Уйти", onPick: () => closeStopDialog() }
+                  ]
+                );
+              }
+            },
+            {
+              id: "danger",
+              label: "Про попутчиков?",
+              onPick: () => {
+                openStopDialogVN(
+                  [
+                    "Местный: “Те, кто платит слишком щедро — часто платят за молчание.”",
+                    "“Если сомневаешься — лучше проехать мимо.”"
+                  ],
+                  [{ id: "ok", label: "Ясно", onPick: () => closeStopDialog() }]
+                );
+              }
+            },
+            { id: "bye0", label: "Уйти", onPick: () => closeStopDialog() }
+          ],
+          { lockMovement: true }
+        );
+
+        return;
+      }
+
+      // generic prop
+      if (nearProp.hint) {
+        openStopDialogVN([nearProp.hint], [
+          { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
+        ]);
+        return;
+      }
+    }
+  }
+
   // ===== здания: интеракт ТОЛЬКО если игрок реально в полосе =====
   const nearPoi = buildings.find((b) => isNearPOI(b));
   if (!nearPoi) return;
@@ -920,22 +1423,27 @@ function handleHubInteract() {
     const amount = 10;
     const cost = amount * 1;
     if (state.money < cost) {
+      showStopToast("Не хватает денег.", "bad");
       alert("Недостаточно денег для покупки топлива.");
       return;
     }
     adjustResources({ fuel: amount, money: -cost });
+    showStopToast("+10 топлива", "good");
     renderStats();
   } else if (nearPoi.type === "food") {
     const cost = 10;
     if (state.money < cost) {
+      showStopToast("Не хватает денег.", "bad");
       alert("Недостаточно денег для еды.");
       return;
     }
     adjustResources({ money: -cost, hunger: 40 });
+    showStopToast("+40 сытости", "good");
     renderStats();
   } else if (nearPoi.type === "hotel") {
     const cost = 25;
     if (state.money < cost) {
+      showStopToast("Не хватает денег.", "bad");
       alert("Недостаточно денег на гостиницу.");
       return;
     }
@@ -943,13 +1451,17 @@ function handleHubInteract() {
     state.fatigue = 100;
     state.hunger = clamp(state.hunger - 10, 0, 100);
     if (checkFailConditions()) return;
+    showStopToast("Бодрость восстановлена", "good");
     renderStats();
   } else if (nearPoi.type === "work") {
     adjustResources({ money: 30, hunger: -10, fatigue: -10 });
     if (checkFailConditions()) return;
+    showStopToast("+30₽", "good");
     renderStats();
   }
 }
+
+/* ===== canvas resize ===== */
 
 function resizeStopCanvas() {
   if (!stopCanvas) return;
@@ -963,25 +1475,19 @@ function resizeStopCanvas() {
 
   if (width <= 0 || totalHeight <= 0) return;
 
-  // 1) сначала считаем layout при канвасе высотой "всё пространство кроме минимальной панели"
   const maxCanvasHeight = Math.max(100, totalHeight - STOP_BOTTOM_BAR_MIN_HEIGHT);
 
-  // временно считаем layout так, чтобы по ширине занять максимум
   const tmpLayout = computeGridLayout(width, maxCanvasHeight);
 
-  // хотим канвас ровно под сетку => canvasHeight = gridH
   let canvasHeight = tmpLayout.gridH;
 
-  // если сетка всё равно не влезла по высоте (бывает при очень низком окне) — ужимаем
   if (canvasHeight > maxCanvasHeight) {
     const fittedLayout = computeGridLayout(width, maxCanvasHeight);
     canvasHeight = fittedLayout.gridH;
   }
 
-  // bottomBar — всё, что осталось
   let bottomBarHeight = totalHeight - canvasHeight;
 
-  // держим минимум
   if (bottomBarHeight < STOP_BOTTOM_BAR_MIN_HEIGHT) {
     bottomBarHeight = STOP_BOTTOM_BAR_MIN_HEIGHT;
     canvasHeight = Math.max(100, totalHeight - bottomBarHeight);
@@ -990,7 +1496,6 @@ function resizeStopCanvas() {
   stopCanvas.width = width;
   stopCanvas.height = canvasHeight;
 
-  // css-отступ снизу у canvas под панель
   stopCanvas.style.bottom = `${bottomBarHeight}px`;
 
   if (bottomBarEl) {
@@ -1015,3 +1520,71 @@ function resizeStopCanvas() {
     state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
   }
 }
+
+/* ===== init/inputs ===== */
+
+function initStopSceneUI() {
+  const btn = qid("btnToggleInventory");
+  if (btn) {
+    btn.onclick = () => {
+      toggleInventoryUI();
+    };
+  }
+
+  toggleInventoryUI(false);
+
+  renderInventoryUI();
+  renderStopDialog();
+  ensureStopToastEl();
+
+  // аватар
+  const avatarEl = qid("playerAvatar");
+  if (avatarEl) {
+    const cfg = typeof getCharacterById === "function" ? getCharacterById(state.selectedCharacterId || "tourist") : null;
+    if (cfg && cfg.avatarKey && sprites[cfg.avatarKey]) {
+      avatarEl.src = sprites[cfg.avatarKey].src;
+    }
+  }
+
+  renderStats();
+}
+
+/**
+ * Биндим ввод один раз
+ */
+function ensureStopSceneBound() {
+  if (ensureStopSceneBound._bound) return;
+  ensureStopSceneBound._bound = true;
+
+  window.addEventListener("resize", () => {
+    if (state.mode === "stop") resizeStopCanvas();
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (state.mode !== "stop") return;
+
+    if (e.code === "KeyI") {
+      e.preventDefault();
+      toggleInventoryUI();
+    }
+
+    if (e.code === "KeyE") {
+      e.preventDefault();
+      handleHubInteract();
+    }
+
+    // Enter / Space -> как "Далее" в новелле, если диалог открыт и есть следующая строка
+    if (e.code === "Enter" || e.code === "Space") {
+      if (stopDialogState.open) {
+        const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
+        if (hasMore) {
+          e.preventDefault();
+          advanceStopDialog();
+        }
+      }
+    }
+  });
+}
+ensureStopSceneBound._bound = false;
+
+ensureStopSceneBound();

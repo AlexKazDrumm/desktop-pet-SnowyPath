@@ -123,12 +123,19 @@
       <!-- STOP / HUB SCREEN: полноэкранный -->
       <section id="screen-stop" class="screen screen-stop hidden">
         <canvas id="stopCanvas"></canvas>
+
         <div class="stop-bottom-bar">
           <div class="stop-bottom-left">
+            <div id="stopObjectTitle" class="stop-object-title"></div>
             <div id="stopHint" class="hint"></div>
           </div>
 
           <div class="stop-bottom-center">
+            <div id="stopDialog" class="stop-dialog hidden">
+              <div id="stopDialogText" class="stop-dialog-text"></div>
+              <div id="stopDialogChoices" class="stop-dialog-choices"></div>
+            </div>
+
             <div id="inventoryWrapper" class="inventory-wrapper">
               <button
                 id="btnToggleInventory"
@@ -154,6 +161,7 @@
               </div>
               <div id="stopStats" class="stop-stats"></div>
             </div>
+
             <div class="stop-controls">
               Управление: WASD / стрелки — ходьба • E — взаимодействие • M — карта • I — инвентарь
             </div>

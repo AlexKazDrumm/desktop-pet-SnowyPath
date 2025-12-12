@@ -44,16 +44,16 @@ const spritePaths = {
   hubWork: "assets/hub_work.png",
 
   // Тайлы (generic)
-  tile_snow: "assets/tiles/tile_snow.png",
-  tile_sidewalk: "assets/tiles/tile_sidewalk.png",
-  tile_grass: "assets/tiles/tile_grass.png",
+  tile_snow: "assets/tiles/hub0/tile_snow.png",
+  tile_sidewalk: "assets/tiles/hub0/tile_sidewalk.png",
+  tile_grass: "assets/tiles/hub0/tile_grass.png",
 
   // Дороги (generic)
-  road_straight: "assets/tiles/road_straight.png",
-  road_corner: "assets/tiles/road_corner.png",
-  road_t: "assets/tiles/road_t.png",
-  road_cross: "assets/tiles/road_cross.png",
-  road_end: "assets/tiles/road_end.png",
+  road_straight: "assets/tiles/hub0/road_straight.png",
+  road_corner: "assets/tiles/hub0/road_corner.png",
+  road_t: "assets/tiles/hub0/road_t.png",
+  road_cross: "assets/tiles/hub0/road_cross.png",
+  road_end: "assets/tiles/hub0/road_end.png",
 
   // Персонажи: анимация ходьбы в хабе (3 кадра: idle, walk1, walk2)
   char_tourist_idle: "assets/char_tourist_idle.png",
@@ -83,6 +83,13 @@ const spritePaths = {
   item_axe: "assets/item_axe.png",
   item_map: "assets/item_map.png",
   item_pistol: "assets/item_pistol.png",
+
+  // props внутри хаба
+  prop_trash: "assets/prop_trash.png",
+  prop_npc: "assets/prop_npc.png",
+
+  // лут из мусорки
+  item_rotten_sandwich: "assets/item_rotten_sandwich.png",
 
   /**
    * Примеры theme-спрайтов (НЕ обязательны, но рекомендуются).

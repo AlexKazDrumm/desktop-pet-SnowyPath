@@ -40,6 +40,9 @@
   background: #020617;
   border-top: 1px solid #374151;
   font-size: 13px;
+
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .stop-bottom-left,
@@ -48,32 +51,264 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
+/* слева — можно в колонку (title + hint) */
 .stop-bottom-left {
   flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
   min-width: 0;
 }
 
 .stop-bottom-center {
   flex: 1.5 1 0;
   justify-content: center;
+  flex-direction: column;
   min-width: 0;
+  gap: 10px;
 }
 
 .stop-bottom-right {
   flex: 1.2 1 0;
   justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
   min-width: 0;
-  gap: 16px;
+  gap: 10px;
   text-align: right;
 }
 
 .stop-controls {
   color: #9ca3af;
   font-size: 12px;
+  line-height: 1.2;
+  max-width: 520px;
 }
 
 .stop-bottom-bar .hint {
   margin: 0;
+  color: #e5e7eb;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stop-object-title {
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 16px;
+}
+
+/* ===== панель игрока (аватар + статы) ===== */
+
+.stop-player-panel {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.player-avatar-wrap {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0b1220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.stop-stats {
+  font-size: 12px;
+  color: #e5e7eb;
+  line-height: 1.2;
+  max-width: 260px;
+  overflow: hidden;
+}
+
+/* ===== диалог ===== */
+
+.stop-dialog {
+  width: min(520px, 100%);
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #0b1220;
+  box-sizing: border-box;
+
+  position: relative;
+  z-index: 5;
+}
+
+.stop-dialog-text {
+  color: #e5e7eb;
+  font-size: 13px;
+  line-height: 1.25;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+.stop-dialog-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.stop-dialog.hidden {
+  display: none;
+}
+
+/* ===== инвентарь (ГОРИЗОНТАЛЬНО) ===== */
+
+.inventory-wrapper {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  position: relative;
+  z-index: 3;
+}
+
+.inventory-toggle {
+  width: 100%;
+  border: 1px solid #374151;
+  background: #0b1220;
+  color: #e5e7eb;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* панель — ряд слотов */
+.inventory-panel {
+  display: none; /* включаем из JS */
+  width: 100%;
+  border: 1px solid #374151;
+  background: #0b1220;
+  border-radius: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+
+  max-height: 140px;
+  overflow: auto;
+
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+.inventory-empty {
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 6px 0;
+}
+
+/* слот предмета */
+.inventory-slot {
+  flex: 0 0 auto;
+  width: 92px;
+  border: 1px solid rgba(55, 65, 81, 0.8);
+  background: rgba(2, 6, 23, 0.35);
+  border-radius: 12px;
+  padding: 8px 8px 7px;
+  cursor: pointer;
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.inventory-slot:hover {
+  border-color: rgba(148, 163, 184, 0.9);
+}
+
+.inventory-slot:active {
+  transform: translateY(1px);
+}
+
+.inventory-slot-iconwrap {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 6px;
+  border: 1px solid rgba(55, 65, 81, 0.7);
+  border-radius: 10px;
+  background: rgba(11, 18, 32, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.inventory-icon {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+
+.inventory-slot-name {
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ===== toast ===== */
+
+.stop-toast {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 10;
+
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(55, 65, 81, 0.9);
+  background: rgba(11, 18, 32, 0.95);
+  color: #e5e7eb;
+  font-size: 13px;
+  line-height: 1.2;
+  max-width: min(640px, calc(100% - 24px));
+  text-align: center;
+}
+
+.stop-toast.hidden {
+  display: none;
+}
+
+.stop-toast.good {
+  border-color: rgba(34, 197, 94, 0.7);
+}
+
+.stop-toast.bad {
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+.stop-toast.info {
+  border-color: rgba(148, 163, 184, 0.8);
 }
