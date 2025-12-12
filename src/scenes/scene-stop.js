@@ -1,250 +1,281 @@
-/**
- * Типы зданий в хабе
- * @typedef {'gas'|'food'|'hotel'|'work'} HubBuildingType
- */
+// src/scenes/scene-stop.js
 
 /**
- * @typedef {{
- *   id?: string;
- *   type: HubBuildingType;
- *   label: string;
- *   hint: string;
- *   relX: number;
- *   relY: number;
- *   relW: number;
- *   relH: number;
- *   spriteKey?: string; // опциональный ключ спрайта для конкретного здания
- * }} HubBuildingConfig
+ * Тайловая сцена "stop":
+ * - ASCII-редактор из game-data.js (hubGridConfigs)
+ * - повороты дорог + перекрёстки
+ * - здания (мультиклетки поддерживаются)
+ * - коллизии (здания непроходимы)
+ * - интеракт по соседству и с машиной
+ * - debug сетка
+ *
+ * Легенда символов ASCII — см. комментарии в src/data/game-data.js (игроку в UI это не показываем).
  */
 
-/**
- * @typedef {{
- *   relX: number;
- *   relY: number;
- *   relW: number;
- *   relH: number;
- * }} HubCarConfig
- */
+const HUB_DEBUG_DRAW_GRID = true;
+
+const STOP_BOTTOM_BAR_MIN_HEIGHT = 172;
 
 /**
- * @typedef {{
- *   pointIndex: number;
- *   backgroundKey?: string; // фон хаба
- *   car?: HubCarConfig;     // позиция машины игрока
- *   buildings: HubBuildingConfig[];
- * }} HubConfig
+ * Получить текущий конфиг хаба на сетке
+ * @returns {ReturnType<typeof getHubGridConfig>}
  */
-
-/**
- * Получить конфиг текущего хаба по индексу точки
- * @returns {HubConfig}
- */
-function getCurrentHubConfig() {
-  const idx = clamp(state.currentPointIndex || 0, 0, hubConfigs.length - 1);
-  return hubConfigs[idx];
+function getCurrentHubGridConfig() {
+  return getHubGridConfig(state.currentPointIndex || 0);
 }
 
-// Дефолтные спрайты по типу, если для здания не задан свой spriteKey
-const poiSpriteDefaults = {
-  gas: "hubGas",
-  food: "hubFood",
-  hotel: "hubHotel",
-  work: "hubWork"
-};
-
 /**
- * Реальные координаты машины на хабе
- * @returns {null | {
- *   x: number;
- *   y: number;
- *   w: number;
- *   h: number;
- *   interactX: number;
- *   interactY: number;
- *   interactW: number;
- *   interactH: number;
- * }}
+ * Вычисление параметров сетки в пикселях.
+ * ПРИОРИТЕТ: занять всю ширину (если помещается по высоте).
+ * СЕТКА ВСЕГДА ПРИБИТА К ВЕРХУ (offsetY = 0).
+ *
+ * @param {number} canvasW
+ * @param {number} canvasH
  */
-function computeHubCar() {
-  if (!stopCanvas) return null;
-  const hub = getCurrentHubConfig();
-  if (!hub.car) return null;
+function computeGridLayout(canvasW, canvasH) {
+  const cols = typeof HUB_GRID_COLS === "number" ? HUB_GRID_COLS : 16;
+  const rows = typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 6;
 
-  const w = stopCanvas.width;
-  const h = stopCanvas.height;
+  const cellByWidth = Math.max(8, Math.floor(canvasW / cols));
+  const gridHByWidth = cellByWidth * rows;
 
-  const boxX = hub.car.relX * w;
-  const boxY = hub.car.relY * h;
-  const boxW = hub.car.relW * w;
-  const boxH = hub.car.relH * h;
+  let cellSize = cellByWidth;
 
-  const carSprite = sprites.car;
-  let drawW = boxW;
-  let drawH = boxH;
-  let drawX = boxX;
-  let drawY = boxY;
-
-  if (
-    carSprite &&
-    carSprite.complete &&
-    carSprite.naturalWidth > 0 &&
-    carSprite.naturalHeight > 0
-  ) {
-    const aspect = carSprite.naturalWidth / carSprite.naturalHeight;
-    drawW = boxW;
-    drawH = drawW / aspect;
-    if (drawH > boxH) {
-      drawH = boxH;
-      drawW = drawH * aspect;
-    }
-    drawX = boxX + (boxW - drawW) / 2;
-    drawY = boxY + (boxH - drawH) / 2;
+  // если по высоте НЕ помещается — уходим в "вписать"
+  if (gridHByWidth > canvasH) {
+    cellSize = Math.max(8, Math.floor(Math.min(canvasW / cols, canvasH / rows)));
   }
 
-  const x = drawX;
-  const y = drawY;
-  const width = drawW;
-  const height = drawH;
+  const gridW = cols * cellSize;
+  const gridH = rows * cellSize;
 
-  // Зона взаимодействия немного больше машины, чтобы было удобно попасть
-  const padding = Math.max(8, Math.min(w, h) * 0.02);
+  const nearFullWidth = Math.abs(canvasW - gridW) <= 2;
 
-  const interactX = x - padding;
-  const interactY = y - padding;
-  const interactW = width + padding * 2;
-  const interactH = height + padding * 2;
+  const offsetX = nearFullWidth ? 0 : Math.floor((canvasW - gridW) / 2);
+  const offsetY = 0; // важно: прибиваем к верху
 
-  return {
-    x,
-    y,
-    w: width,
-    h: height,
-    interactX,
-    interactY,
-    interactW,
-    interactH
-  };
+  return { cols, rows, cellSize, gridW, gridH, offsetX, offsetY };
+}
+
+function isRoadChar(ch) { return ch === "#"; }
+function isSidewalkChar(ch) { return ch === "s"; }
+function isSnowChar(ch) { return ch === "."; }
+function isGrassChar(ch) { return ch === "g"; }
+
+function isWalkableTileChar(ch) {
+  return isRoadChar(ch) || isSidewalkChar(ch) || isSnowChar(ch) || isGrassChar(ch);
+}
+
+function isBuildingChar(ch) {
+  return ch === "G" || ch === "F" || ch === "H" || ch === "W";
 }
 
 /**
- * Реальные координаты зданий под текущий размер канваса.
- * ВАЖНО: x,y,w,h соответствуют ИМЕННО СПРАЙТУ (после вписывания по аспекту).
- * Зона взаимодействия снизу — по ширине = ширине спрайта.
+ * @param {string[]} grid
+ * @param {number} x
+ * @param {number} y
+ */
+function getMapChar(grid, x, y) {
+  if (!grid || y < 0 || y >= grid.length) return " ";
+  const row = grid[y] || "";
+  if (x < 0 || x >= row.length) return " ";
+  return row[x];
+}
+
+/**
+ * @param {number} px
+ * @param {number} py
+ * @param {{offsetX:number; offsetY:number; cellSize:number; cols:number; rows:number}} layout
+ */
+function pixelToCell(px, py, layout) {
+  const cx = Math.floor((px - layout.offsetX) / layout.cellSize);
+  const cy = Math.floor((py - layout.offsetY) / layout.cellSize);
+  return { cx, cy };
+}
+
+/**
+ * @param {number} cx
+ * @param {number} cy
+ * @param {{offsetX:number; offsetY:number; cellSize:number}} layout
+ */
+function cellToRect(cx, cy, layout) {
+  const x = layout.offsetX + cx * layout.cellSize;
+  const y = layout.offsetY + cy * layout.cellSize;
+  const s = layout.cellSize;
+  return { x, y, w: s, h: s };
+}
+
+/**
+ * Прямоугольник в пределах клетки по относительным координатам (0..1)
+ * @param {number} cx
+ * @param {number} cy
+ * @param {ReturnType<typeof computeGridLayout>} layout
+ * @param {number} relX
+ * @param {number} relY
+ * @param {number} relW
+ * @param {number} relH
+ */
+function cellToSubRect(cx, cy, layout, relX, relY, relW, relH) {
+  const base = cellToRect(cx, cy, layout);
+  const x = base.x + base.w * relX;
+  const y = base.y + base.h * relY;
+  const w = base.w * relW;
+  const h = base.h * relH;
+  return { x, y, w, h };
+}
+
+/**
+ * @param {string} themeKey
+ * @param {string} baseKey
+ */
+function getThemedSprite(themeKey, baseKey) {
+  const themedKey = themeKey ? `${themeKey}_${baseKey}` : baseKey;
+  const themed = sprites[themedKey];
+  if (themed && themed.complete && themed.naturalWidth > 0) return { key: themedKey, img: themed };
+  const generic = sprites[baseKey];
+  if (generic && generic.complete && generic.naturalWidth > 0) return { key: baseKey, img: generic };
+  return { key: baseKey, img: null };
+}
+
+function computeRoadVariant(grid, x, y) {
+  const up = isRoadChar(getMapChar(grid, x, y - 1));
+  const down = isRoadChar(getMapChar(grid, x, y + 1));
+  const left = isRoadChar(getMapChar(grid, x - 1, y));
+  const right = isRoadChar(getMapChar(grid, x + 1, y));
+
+  const count = (up ? 1 : 0) + (down ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0);
+
+  if (count >= 4) return { variant: "road_cross", rot: 0 };
+
+  if (count === 3) {
+    if (!up) return { variant: "road_t", rot: 0 };
+    if (!down) return { variant: "road_t", rot: Math.PI };
+    if (!left) return { variant: "road_t", rot: Math.PI / 2 };
+    return { variant: "road_t", rot: -Math.PI / 2 };
+  }
+
+  if (count === 2 && ((up && right) || (right && down) || (down && left) || (left && up))) {
+    if (right && down) return { variant: "road_corner", rot: 0 };
+    if (up && right) return { variant: "road_corner", rot: -Math.PI / 2 };
+    if (left && up) return { variant: "road_corner", rot: Math.PI };
+    return { variant: "road_corner", rot: Math.PI / 2 };
+  }
+
+  if (count === 2 && ((left && right) || (up && down))) {
+    if (left && right) return { variant: "road_straight", rot: 0 };
+    return { variant: "road_straight", rot: Math.PI / 2 };
+  }
+
+  if (count === 1) {
+    if (down) return { variant: "road_end", rot: 0 };
+    if (up) return { variant: "road_end", rot: Math.PI };
+    if (right) return { variant: "road_end", rot: -Math.PI / 2 };
+    return { variant: "road_end", rot: Math.PI / 2 };
+  }
+
+  return { variant: "road_end", rot: 0 };
+}
+
+/**
+ * Парсим ASCII:
+ * - здания (прямоугольники по одинаковой букве) — мультиклетки поддерживаются
+ * - машина (C)
  *
- * @returns {Array<{
- *   id: string;
- *   type: HubBuildingType;
- *   label: string;
- *   hint: string;
- *   spriteKey: string | null;
- *   x: number;
- *   y: number;
- *   w: number;
- *   h: number;
- *   interactX: number;
- *   interactY: number;
- *   interactW: number;
- *   interactH: number;
- * }>}
+ * @param {ReturnType<typeof getHubGridConfig>} hubCfg
  */
-function computeHubBuildings() {
-  if (!stopCanvas) return [];
-  const w = stopCanvas.width;
-  const h = stopCanvas.height;
+function parseHubAscii(hubCfg) {
+  const grid = hubCfg.grid || [];
+  const cols = HUB_GRID_COLS;
+  const rows = HUB_GRID_ROWS;
 
-  const hub = getCurrentHubConfig();
-  const interactBandHeight = Math.max(16, h * 0.04); // высота полосы взаимодействия
+  /** @type {boolean[][]} */
+  const visited = Array.from({ length: rows }, () => Array.from({ length: cols }, () => false));
 
-  return hub.buildings.map((b, index) => {
-    // Базовая "рамка" под здание из нормализованных координат
-    const boxX = b.relX * w;
-    const boxY = b.relY * h;
-    const boxW = b.relW * w;
-    const boxH = b.relH * h;
+  /** @type {Array<{char:string; x0:number;y0:number;x1:number;y1:number; type:any; label:string; hint:string; spriteKey:string|null; id:string}>} */
+  const buildings = [];
 
-    // Ключ спрайта: либо кастомный, либо дефолт по типу
-    const spriteKey = b.spriteKey || poiSpriteDefaults[b.type] || null;
-    const sprite = spriteKey ? sprites[spriteKey] : null;
+  /** @type {null|{cx:number; cy:number}} */
+  let carCell = null;
 
-    let drawW = boxW;
-    let drawH = boxH;
-    let drawX = boxX;
-    let drawY = boxY;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const ch = getMapChar(grid, x, y);
 
-    if (
-      sprite &&
-      sprite.complete &&
-      sprite.naturalWidth > 0 &&
-      sprite.naturalHeight > 0
-    ) {
-      const aspect = sprite.naturalWidth / sprite.naturalHeight;
-      drawW = boxW;
-      drawH = drawW / aspect;
-      if (drawH > boxH) {
-        drawH = boxH;
-        drawW = drawH * aspect;
+      if (ch === "C") carCell = { cx: x, cy: y };
+
+      if (!isBuildingChar(ch)) continue;
+      if (visited[y][x]) continue;
+
+      const target = ch;
+      /** @type {Array<{x:number;y:number}>} */
+      const stack = [{ x, y }];
+      visited[y][x] = true;
+
+      let minX = x, maxX = x, minY = y, maxY = y;
+
+      while (stack.length) {
+        const cur = stack.pop();
+        if (!cur) break;
+
+        if (cur.x < minX) minX = cur.x;
+        if (cur.x > maxX) maxX = cur.x;
+        if (cur.y < minY) minY = cur.y;
+        if (cur.y > maxY) maxY = cur.y;
+
+        const neigh = [
+          { x: cur.x + 1, y: cur.y },
+          { x: cur.x - 1, y: cur.y },
+          { x: cur.x, y: cur.y + 1 },
+          { x: cur.x, y: cur.y - 1 }
+        ];
+
+        for (const n of neigh) {
+          if (n.x < 0 || n.x >= cols || n.y < 0 || n.y >= rows) continue;
+          if (visited[n.y][n.x]) continue;
+          const nc = getMapChar(grid, n.x, n.y);
+          if (nc !== target) continue;
+          visited[n.y][n.x] = true;
+          stack.push(n);
+        }
       }
-      drawX = boxX + (boxW - drawW) / 2;
-      drawY = boxY + (boxH - drawH) / 2;
+
+      const meta = hubBuildingMetaByChar[target] || null;
+      const label = meta ? meta.label : target;
+      const hint = meta ? meta.hint : "E — взаимодействовать";
+      const spriteKey = meta && meta.spriteKey ? meta.spriteKey : null;
+
+      buildings.push({
+        char: target,
+        x0: minX,
+        y0: minY,
+        x1: maxX,
+        y1: maxY,
+        type: meta ? meta.type : "work",
+        label,
+        hint,
+        spriteKey,
+        id: `${target}_${hubCfg.pointIndex}_${minX}_${minY}_${maxX}_${maxY}`
+      });
     }
+  }
 
-    const x = drawX;
-    const y = drawY;
-    const width = drawW;
-    const height = drawH;
-
-    // Полоса взаимодействия — строго по ширине спрайта, ВПРИТЫК под ним
-    let interactX = x;
-    let interactW = width;
-    let interactY = y + height; // БЕЗ зазора
-    let interactH = interactBandHeight;
-
-    if (interactY + interactH > h - 8) {
-      interactY = h - interactH - 8;
-    }
-
-    return {
-      id: b.id || `${b.type}_${hub.pointIndex}_${index}`,
-      type: b.type,
-      label: b.label,
-      hint: b.hint,
-      spriteKey,
-      x,
-      y,
-      w: width,
-      h: height,
-      interactX,
-      interactY,
-      interactW,
-      interactH
-    };
-  });
+  return { buildings, carCell };
 }
 
 /**
- * Проверка, что игрок в зоне взаимодействия здания
- * @param {{
- *   interactX:number;
- *   interactY:number;
- *   interactW:number;
- *   interactH:number;
- * }} poi
+ * Клетка проходима?
+ * @param {ReturnType<typeof getHubGridConfig>} hubCfg
+ * @param {number} cx
+ * @param {number} cy
  */
-function isNearPOI(poi) {
-  const px = state.hub.x;
-  const py = state.hub.y;
-  return (
-    px >= poi.interactX &&
-    px <= poi.interactX + poi.interactW &&
-    py >= poi.interactY &&
-    py <= poi.interactY + poi.interactH
-  );
+function isCellWalkable(hubCfg, cx, cy) {
+  const ch = getMapChar(hubCfg.grid, cx, cy);
+  if (isBuildingChar(ch)) return false;
+  if (ch === " ") return false;
+  if (ch === "C") return true;
+  return isWalkableTileChar(ch) || ch === "#";
 }
 
-/**
- * Проверка, что игрок рядом с машиной
- * @param {{interactX:number;interactY:number;interactW:number;interactH:number}} car
- */
 function isNearCar(car) {
   const px = state.hub.x;
   const py = state.hub.y;
@@ -256,34 +287,6 @@ function isNearCar(car) {
   );
 }
 
-/**
- * Проверка, что позиция игрока врезалась в какое-либо здание
- * (коллизия по прямоугольникам СПРАЙТОВ)
- *
- * @param {number} px
- * @param {number} py
- * @param {ReturnType<typeof computeHubBuildings>} buildings
- */
-function collidesWithAnyBuilding(px, py, buildings) {
-  for (const b of buildings) {
-    if (
-      px >= b.x &&
-      px <= b.x + b.w &&
-      py >= b.y &&
-      py <= b.y + b.h
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Проверка, что позиция игрока врезалась в машину
- * @param {number} px
- * @param {number} py
- * @param {{x:number;y:number;w:number;h:number}} car
- */
 function collidesWithCar(px, py, car) {
   return (
     px >= car.x &&
@@ -293,51 +296,299 @@ function collidesWithCar(px, py, car) {
   );
 }
 
-/**
- * Квантование угла в 8 направлений (по 45°)
- * @param {number} angleRad
- */
+function pointInRect(px, py, r) {
+  return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+}
+
 function snapAngleTo8Directions(angleRad) {
-  const sectorAngle = Math.PI / 4; // 45°
+  const sectorAngle = Math.PI / 4;
   const sectorIndex = Math.round(angleRad / sectorAngle);
   return sectorIndex * sectorAngle;
 }
 
 /**
- * Рендер хаба (остановки)
- * @param {number} dt
+ * @param {HTMLImageElement} img
+ * @param {number} boxX
+ * @param {number} boxY
+ * @param {number} boxW
+ * @param {number} boxH
  */
+function fitSpriteInBox(img, boxX, boxY, boxW, boxH) {
+  if (!img || !img.complete || img.naturalWidth <= 0 || img.naturalHeight <= 0) {
+    return { x: boxX, y: boxY, w: boxW, h: boxH };
+  }
+  const aspect = img.naturalWidth / img.naturalHeight;
+  let w = boxW;
+  let h = w / aspect;
+  if (h > boxH) {
+    h = boxH;
+    w = h * aspect;
+  }
+  const x = boxX + (boxW - w) / 2;
+  const y = boxY + (boxH - h) / 2;
+  return { x, y, w, h };
+}
+
+/**
+ * Машина: по высоте <= 50% клетки.
+ * @param {{cx:number;cy:number}} carCell
+ * @param {ReturnType<typeof computeGridLayout>} layout
+ */
+function computeHubCarFromCell(carCell, layout) {
+  if (!carCell) return null;
+  const r = cellToRect(carCell.cx, carCell.cy, layout);
+
+  const cell = layout.cellSize;
+  const inset = Math.max(2, Math.floor(cell * 0.10));
+
+  const boxX = r.x + inset;
+  const boxW = r.w - inset * 2;
+
+  const boxH = Math.floor(r.h * 0.50);
+  const boxY = r.y + (r.h - boxH) / 2;
+
+  const carSprite = sprites.car;
+  const fitted = fitSpriteInBox(carSprite, boxX, boxY, boxW, boxH);
+
+  const padding = Math.max(6, cell * 0.18);
+  const interactX = fitted.x - padding;
+  const interactY = fitted.y - padding;
+  const interactW = fitted.w + padding * 2;
+  const interactH = fitted.h + padding * 2;
+
+  return {
+    x: fitted.x,
+    y: fitted.y,
+    w: fitted.w,
+    h: fitted.h,
+    interactX,
+    interactY,
+    interactW,
+    interactH,
+    cellCx: carCell.cx,
+    cellCy: carCell.cy
+  };
+}
+
+/**
+ * Здания:
+ * - спрайт вписываем в bbox здания с padding 10% от клетки
+ * - актив-зона: ПОД зданием:
+ *   берём клетку(и) непосредственно под зданием (y1+1) и используем верхние 15% высоты этой клетки
+ *
+ * @param {ReturnType<typeof computeGridLayout>} layout
+ * @param {ReturnType<typeof parseHubAscii>["buildings"]} buildings
+ */
+function computeHubBuildingsFromCells(layout, buildings) {
+  const res = [];
+
+  for (const b of buildings) {
+    const x0 = b.x0, y0 = b.y0, x1 = b.x1, y1 = b.y1;
+    const cell = layout.cellSize;
+
+    const boxX = layout.offsetX + x0 * cell;
+    const boxY = layout.offsetY + y0 * cell;
+    const boxW = (x1 - x0 + 1) * cell;
+    const boxH = (y1 - y0 + 1) * cell;
+
+    const inset = Math.max(2, Math.floor(cell * 0.10));
+    const innerX = boxX + inset;
+    const innerY = boxY + inset;
+    const innerW = boxW - inset * 2;
+    const innerH = boxH - inset * 2;
+
+    const spriteKey = b.spriteKey || null;
+    const sprite = spriteKey ? sprites[spriteKey] : null;
+
+    const fitted = sprite
+      ? fitSpriteInBox(sprite, innerX, innerY, innerW, innerH)
+      : { x: innerX, y: innerY, w: innerW, h: innerH };
+
+    const belowRow = y1 + 1;
+    const hasBelowCell = belowRow >= 0 && belowRow < layout.rows;
+
+    let interactX = 0;
+    let interactY = 0;
+    let interactW = 0;
+    let interactH = 0;
+
+    if (hasBelowCell) {
+      const belowY = layout.offsetY + belowRow * cell;
+      interactX = boxX;
+      interactY = belowY;
+      interactW = boxW;
+      interactH = Math.max(6, Math.floor(cell * 0.15));
+    }
+
+    res.push({
+      id: b.id,
+      type: b.type,
+      label: b.label,
+      hint: b.hint,
+      spriteKey,
+      x: fitted.x,
+      y: fitted.y,
+      w: fitted.w,
+      h: fitted.h,
+      cellX0: x0,
+      cellY0: y0,
+      cellX1: x1,
+      cellY1: y1,
+      interactX,
+      interactY,
+      interactW,
+      interactH,
+      bboxX: boxX,
+      bboxY: boxY,
+      bboxW: boxW,
+      bboxH: boxH
+    });
+  }
+
+  return res;
+}
+
+/**
+ * Опциональные props внутри хаба (субклеточные объекты).
+ * Формат hubCfg.props:
+ *   [{id,cx,cy,relX,relY,relW,relH,spriteKey,solid}]
+ *
+ * @param {ReturnType<typeof getHubGridConfig>} hubCfg
+ * @param {ReturnType<typeof computeGridLayout>} layout
+ */
+function computeHubProps(hubCfg, layout) {
+  const list = Array.isArray(hubCfg.props) ? hubCfg.props : [];
+  const res = [];
+
+  for (const p of list) {
+    if (typeof p.cx !== "number" || typeof p.cy !== "number") continue;
+    const relX = typeof p.relX === "number" ? p.relX : 0;
+    const relY = typeof p.relY === "number" ? p.relY : 0;
+    const relW = typeof p.relW === "number" ? p.relW : 1;
+    const relH = typeof p.relH === "number" ? p.relH : 1;
+
+    const r = cellToSubRect(p.cx, p.cy, layout, relX, relY, relW, relH);
+
+    res.push({
+      id: String(p.id || `prop_${p.cx}_${p.cy}_${relX}_${relY}`),
+      cx: p.cx,
+      cy: p.cy,
+      spriteKey: p.spriteKey || null,
+      solid: !!p.solid,
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h
+    });
+  }
+
+  return res;
+}
+
+function isNearPOI(poi) {
+  if (!poi || poi.interactW <= 0 || poi.interactH <= 0) return false;
+  const px = state.hub.x;
+  const py = state.hub.y;
+  return (
+    px >= poi.interactX &&
+    px <= poi.interactX + poi.interactW &&
+    py >= poi.interactY &&
+    py <= poi.interactY + poi.interactH
+  );
+}
+
+function drawTile(ctx, img, x, y, s) {
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, x, y, s, s);
+  } else {
+    ctx.fillStyle = "#0b1220";
+    ctx.fillRect(x, y, s, s);
+  }
+}
+
+function drawRotatedTile(ctx, img, x, y, s, rot) {
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.save();
+    ctx.translate(x + s / 2, y + s / 2);
+    ctx.rotate(rot);
+    ctx.drawImage(img, -s / 2, -s / 2, s, s);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(x, y, s, s);
+  }
+}
+
+/**
+ * Вычислить "радиус" игрока для коллизий/спавна
+ * @param {ReturnType<typeof computeGridLayout>} layout
+ */
+function getPlayerRadius(layout) {
+  const drawSize = Math.max(6, Math.floor(layout.cellSize * 0.25));
+  return Math.max(3, drawSize / 2);
+}
+
+/**
+ * Проверка "точка стояния" валидна:
+ * - в пределах сетки
+ * - попадает в walkable клетку
+ * - не коллизится с машиной
+ * - не попадает в solid props
+ */
+function isValidStandPoint(hubCfg, layout, x, y, car, props) {
+  const cell = pixelToCell(x, y, layout);
+  if (cell.cx < 0 || cell.cx >= layout.cols || cell.cy < 0 || cell.cy >= layout.rows) return false;
+  if (!isCellWalkable(hubCfg, cell.cx, cell.cy)) return false;
+  if (car && collidesWithCar(x, y, car)) return false;
+
+  if (Array.isArray(props)) {
+    for (const p of props) {
+      if (!p.solid) continue;
+      if (pointInRect(x, y, p)) return false;
+    }
+  }
+
+  return true;
+}
+
 function renderStopHub(dt) {
   if (!stopCtx || !stopCanvas) return;
+
   const ctx = stopCtx;
   const w = stopCanvas.width;
   const h = stopCanvas.height;
 
-  const hubConfig = getCurrentHubConfig();
+  const hubCfg = getCurrentHubGridConfig();
+  const layout = computeGridLayout(w, h);
 
-  // Конфиг текущего хаба
-  const buildings = computeHubBuildings();
-  const car = computeHubCar();
+  if (!hubCfg || !hubCfg.grid || hubCfg.grid.length !== layout.rows) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
 
-  // Если зашли в НОВЫЙ хаб — всегда начинаем В МАШИНЕ
-  if (state.hub.hubPointIndex !== hubConfig.pointIndex) {
+  const parsed = parseHubAscii(hubCfg);
+  const buildings = computeHubBuildingsFromCells(layout, parsed.buildings);
+  const car = computeHubCarFromCell(parsed.carCell, layout);
+  const props = computeHubProps(hubCfg, layout);
+
+  if (state.hub.hubPointIndex !== hubCfg.pointIndex) {
     if (car) {
       state.hub.x = car.x + car.w / 2;
       state.hub.y = car.y + car.h / 2;
       state.hub.inCar = true;
     } else {
-      state.hub.x = w / 2;
-      state.hub.y = h / 2;
+      state.hub.x = layout.offsetX + layout.gridW / 2;
+      state.hub.y = layout.offsetY + layout.gridH / 2;
       state.hub.inCar = false;
     }
-    state.hub.hubPointIndex = hubConfig.pointIndex;
-    if (w > 0 && h > 0) {
-      state.hub.xNorm = state.hub.x / w;
-      state.hub.yNorm = state.hub.y / h;
-    }
+    state.hub.hubPointIndex = hubCfg.pointIndex;
+
+    state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
+    state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
   }
 
-  // Обновляем позицию игрока ТОЛЬКО если он не в машине
   const speed = state.hub.speed;
   let vx = 0;
   let vy = 0;
@@ -360,48 +611,121 @@ function renderStopHub(dt) {
     state.hub.x += vx * speed * dt;
     state.hub.y += vy * speed * dt;
 
-    // 8 направлений: запоминаем направление и угол
     state.hub.dirX = vx;
     state.hub.dirY = vy;
-    const rawAngle = Math.atan2(vy, vx);
-    state.hub.angle = snapAngleTo8Directions(rawAngle);
+    state.hub.angle = snapAngleTo8Directions(Math.atan2(vy, vx));
   }
 
-  // Ограничения по краям "площадки" хаба
-  const margin = 40;
-  state.hub.x = clamp(state.hub.x, margin, w - margin);
-  state.hub.y = clamp(state.hub.y, margin, h - margin);
+  // ВАЖНО: сетка прибита к верху => minY от offsetY
+  const margin = Math.max(6, Math.floor(layout.cellSize * 0.20));
+  const minX = layout.offsetX + margin;
+  const maxX = layout.offsetX + layout.gridW - margin;
+  const minY = layout.offsetY + margin;
+  const maxY = layout.offsetY + layout.gridH - margin;
 
-  // Коллизии со зданиями: если врезались — откатываем позицию
-  if (collidesWithAnyBuilding(state.hub.x, state.hub.y, buildings)) {
+  state.hub.x = clamp(state.hub.x, minX, maxX);
+  state.hub.y = clamp(state.hub.y, minY, maxY);
+
+  const cell = pixelToCell(state.hub.x, state.hub.y, layout);
+
+  if (cell.cx < 0 || cell.cx >= layout.cols || cell.cy < 0 || cell.cy >= layout.rows) {
     state.hub.x = prevX;
     state.hub.y = prevY;
+  } else {
+    if (!state.hub.inCar) {
+      const walkable = isCellWalkable(hubCfg, cell.cx, cell.cy);
+      if (!walkable) {
+        state.hub.x = prevX;
+        state.hub.y = prevY;
+      }
+    }
   }
 
-  // Коллизия с машиной (только если игрок пешком и машина есть)
   if (!state.hub.inCar && car && collidesWithCar(state.hub.x, state.hub.y, car)) {
     state.hub.x = prevX;
     state.hub.y = prevY;
   }
 
-  // Обновляем нормализованные координаты игрока для корректного ресайза
-  if (w > 0 && h > 0) {
-    state.hub.xNorm = state.hub.x / w;
-    state.hub.yNorm = state.hub.y / h;
+  // Коллизия с solid props
+  if (!state.hub.inCar && props && props.length) {
+    for (const p of props) {
+      if (!p.solid) continue;
+      if (pointInRect(state.hub.x, state.hub.y, p)) {
+        state.hub.x = prevX;
+        state.hub.y = prevY;
+        break;
+      }
+    }
   }
 
-  // Рендер сцены
+  state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
+  state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
+
   ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#020617";
+  ctx.fillRect(0, 0, w, h);
 
-  // Фон города
-  const bgSpriteKey = hubConfig.backgroundKey || null;
-  const bgSprite = bgSpriteKey ? sprites[bgSpriteKey] : null;
+  const themeKey = hubCfg.themeKey || "";
 
-  if (bgSprite && bgSprite.complete && bgSprite.naturalWidth > 0) {
-    ctx.drawImage(bgSprite, 0, 0, w, h);
-  } else {
-    ctx.fillStyle = "#020617";
-    ctx.fillRect(0, 0, w, h);
+  // tiles + roads
+  for (let y = 0; y < layout.rows; y++) {
+    for (let x = 0; x < layout.cols; x++) {
+      const ch = getMapChar(hubCfg.grid, x, y);
+      const r = cellToRect(x, y, layout);
+
+      let tileBase = "tile_snow";
+      if (isSidewalkChar(ch)) tileBase = "tile_sidewalk";
+      if (isGrassChar(ch)) tileBase = "tile_grass";
+      if (isSnowChar(ch)) tileBase = "tile_snow";
+      if (isRoadChar(ch)) tileBase = "tile_sidewalk";
+
+      const baseSpr = getThemedSprite(themeKey, tileBase);
+      drawTile(ctx, baseSpr.img, r.x, r.y, r.w);
+
+      if (isRoadChar(ch)) {
+        const rv = computeRoadVariant(hubCfg.grid, x, y);
+        const roadSpr = getThemedSprite(themeKey, rv.variant);
+        drawRotatedTile(ctx, roadSpr.img, r.x, r.y, r.w, rv.rot);
+      }
+    }
+  }
+
+  // debug grid
+  if (HUB_DEBUG_DRAW_GRID) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(148,163,184,0.55)";
+    ctx.lineWidth = 1;
+    for (let y = 0; y <= layout.rows; y++) {
+      const yy = layout.offsetY + y * layout.cellSize;
+      ctx.beginPath();
+      ctx.moveTo(layout.offsetX, yy);
+      ctx.lineTo(layout.offsetX + layout.gridW, yy);
+      ctx.stroke();
+    }
+    for (let x = 0; x <= layout.cols; x++) {
+      const xx = layout.offsetX + x * layout.cellSize;
+      ctx.beginPath();
+      ctx.moveTo(xx, layout.offsetY);
+      ctx.lineTo(xx, layout.offsetY + layout.gridH);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // props (sub-cell)
+  if (props && props.length) {
+    for (const p of props) {
+      const img = p.spriteKey ? sprites[p.spriteKey] : null;
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, p.x, p.y, p.w, p.h);
+      } else {
+        // placeholder
+        ctx.save();
+        ctx.strokeStyle = "rgba(250,204,21,0.6)";
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
+        ctx.restore();
+      }
+    }
   }
 
   ctx.textAlign = "center";
@@ -409,38 +733,27 @@ function renderStopHub(dt) {
 
   let currentHint = "";
 
-  // Сначала здания
+  // buildings
   buildings.forEach((poi) => {
-    const isNear = isNearPOI(poi);
+    const isInsideBand = isNearPOI(poi); // ВАЖНО: только реальный заход в прямоугольник
 
-    // Всегда рисуем рамку зоны взаимодействия (пунктир)
+    // debug: зона взаимодействия
     ctx.save();
     ctx.setLineDash([6, 4]);
-    ctx.strokeStyle = "rgba(148,163,184,0.9)"; // сероватый
+    ctx.strokeStyle = "rgba(148,163,184,0.9)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(
-      poi.interactX,
-      poi.interactY,
-      poi.interactW,
-      poi.interactH
-    );
+    if (poi.interactW > 0 && poi.interactH > 0) {
+      ctx.strokeRect(poi.interactX, poi.interactY, poi.interactW, poi.interactH);
+    }
     ctx.restore();
 
-    // Если игрок в зоне — мягкая заливка поверх рамки (только пешком)
-    if (isNear && !state.hub.inCar) {
+    // подсветка — только если реально внутри interactRect
+    if (isInsideBand && !state.hub.inCar && poi.interactW > 0 && poi.interactH > 0) {
       ctx.fillStyle = "rgba(34,197,94,0.16)";
-      ctx.fillRect(
-        poi.interactX,
-        poi.interactY,
-        poi.interactW,
-        poi.interactH
-      );
+      ctx.fillRect(poi.interactX, poi.interactY, poi.interactW, poi.interactH);
     }
 
-    // Спрайт здания
-    const spriteKey = poi.spriteKey;
-    const sprite = spriteKey ? sprites[spriteKey] : null;
-
+    const sprite = poi.spriteKey ? sprites[poi.spriteKey] : null;
     if (sprite && sprite.complete && sprite.naturalWidth > 0) {
       ctx.drawImage(sprite, poi.x, poi.y, poi.w, poi.h);
     } else {
@@ -448,22 +761,18 @@ function renderStopHub(dt) {
       ctx.fillRect(poi.x, poi.y, poi.w, poi.h);
     }
 
-    // Подпись под зданием
+    const labelX = poi.bboxX + poi.bboxW / 2;
+    const labelY = poi.bboxY + poi.bboxH + Math.max(6, Math.floor(layout.cellSize * 0.12));
+
     ctx.font = "13px system-ui";
     ctx.fillStyle = "#e5e7eb";
     ctx.textBaseline = "top";
-    ctx.fillText(
-      poi.label,
-      poi.x + poi.w / 2,
-      poi.y + poi.h + 6
-    );
+    ctx.fillText(poi.label, labelX, labelY);
 
-    if (isNear && !state.hub.inCar) {
-      currentHint = poi.hint;
-    }
+    if (isInsideBand && !state.hub.inCar) currentHint = poi.hint;
   });
 
-  // Машина игрока
+  // car
   if (car) {
     const carSprite = sprites.car;
     if (carSprite && carSprite.complete && carSprite.naturalWidth > 0) {
@@ -473,105 +782,127 @@ function renderStopHub(dt) {
       ctx.fillRect(car.x, car.y, car.w, car.h);
     }
 
-    // Если рядом с машиной — подсказка по машине
     if (isNearCar(car)) {
-      currentHint = state.hub.inCar
-        ? "E — выйти из машины"
-        : "E — сесть в машину";
+      currentHint = state.hub.inCar ? "E — выйти из машины" : "E — сесть в машину";
     }
   }
 
-  // Игрок: МЕНЬШЕ исходный масштаб
-  const px = state.hub.x;
-  const py = state.hub.y;
-  const playerSize = Math.max(8, Math.round(h * 0.025)); // было ~0.035
-
-  const playerSprite = sprites.player;
-  const angle = state.hub.angle ?? -Math.PI / 2; // по умолчанию вверх
-
+  // player
   if (!state.hub.inCar) {
+    const px = state.hub.x;
+    const py = state.hub.y;
+
+    const drawSize = Math.max(6, Math.floor(layout.cellSize * 0.25));
+    const playerSprite = sprites.player;
+    const angle = state.hub.angle ?? -Math.PI / 2;
+
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(angle);
 
-    if (
-      playerSprite &&
-      playerSprite.complete &&
-      playerSprite.naturalWidth > 0
-    ) {
-      ctx.drawImage(
-        playerSprite,
-        -playerSize,
-        -playerSize,
-        playerSize * 2,
-        playerSize * 2
-      );
+    if (playerSprite && playerSprite.complete && playerSprite.naturalWidth > 0) {
+      ctx.drawImage(playerSprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
     } else {
       ctx.fillStyle = "#f97316";
-      ctx.fillRect(-playerSize, -playerSize, playerSize * 2, playerSize * 2);
+      ctx.fillRect(-drawSize / 2, -drawSize / 2, drawSize, drawSize);
     }
 
     ctx.restore();
   }
 
+  // hint
   const hintEl = qid("stopHint");
   if (hintEl) {
     hintEl.textContent =
-      currentHint ||
-      (state.hub.inCar
-        ? "Подойди к машине и нажми E, чтобы выйти. M — открыть карту маршрута."
-        : "Подойди к зданию и нажми E. M — открыть карту маршрута.");
+      (currentHint
+        ? currentHint
+        : (state.hub.inCar
+          ? "Подойди к машине и нажми E, чтобы выйти. M — открыть карту маршрута."
+          : "Зайди в зону под зданием (тонкая полоса) и нажми E. M — открыть карту маршрута."));
   }
 }
 
-/**
- * Взаимодействие на хабе (E)
- */
 function handleHubInteract() {
   if (!stopCanvas) return;
 
-  const car = computeHubCar();
-  const buildings = computeHubBuildings();
+  const hubCfg = getCurrentHubGridConfig();
+  const layout = computeGridLayout(stopCanvas.width, stopCanvas.height);
+  const parsed = parseHubAscii(hubCfg);
+
+  const buildings = computeHubBuildingsFromCells(layout, parsed.buildings);
+  const car = computeHubCarFromCell(parsed.carCell, layout);
+  const props = computeHubProps(hubCfg, layout);
+
   const nearCar = car ? isNearCar(car) : false;
 
-  // Если рядом с машиной — приоритетно обрабатываем посадку/выход
+  // ===== машина =====
   if (nearCar && car) {
     if (state.hub.inCar) {
-      // ВЫХОД ИЗ МАШИНЫ — пытаемся появиться СБОКУ,
-      // избегая телепорта внутрь зданий
-      const centerX = car.x + car.w / 2;
-      const centerY = car.y + car.h / 2;
+      // выйти из машины: рядом с машиной, а не в центр клетки
+      const rPlayer = getPlayerRadius(layout);
+      const gap = Math.max(3, Math.floor(layout.cellSize * 0.08));
 
-      const exitOffsets = [
-        { dx: car.w * 0.7, dy: 0 },           // справа
-        { dx: -car.w * 0.7, dy: 0 },          // слева
-        { dx: 0, dy: car.h * 0.9 },           // снизу (fallback)
-        { dx: 0, dy: -car.h * 0.9 }           // сверху (на всякий)
+      /** @type {Array<{name:string; x:number; y:number}>} */
+      const candidates = [
+        { name: "right", x: car.x + car.w + gap + rPlayer, y: car.y + car.h / 2 },
+        { name: "left",  x: car.x - gap - rPlayer,        y: car.y + car.h / 2 },
+        { name: "down",  x: car.x + car.w / 2,            y: car.y + car.h + gap + rPlayer },
+        { name: "up",    x: car.x + car.w / 2,            y: car.y - gap - rPlayer }
       ];
 
-      let foundPos = null;
-      for (const off of exitOffsets) {
-        const candX = centerX + off.dx;
-        const candY = centerY + off.dy;
-        if (!collidesWithAnyBuilding(candX, candY, buildings)) {
-          foundPos = { x: candX, y: candY };
-          break;
+      let chosen = null;
+
+      for (const c of candidates) {
+        if (!isValidStandPoint(hubCfg, layout, c.x, c.y, car, props)) continue;
+        chosen = { x: c.x, y: c.y };
+        break;
+      }
+
+      // fallback: попробуем соседние клетки (но ставим ближе к границе)
+      if (!chosen) {
+        const carCell = parsed.carCell;
+
+        if (carCell) {
+          const neighbors = [
+            { cx: carCell.cx + 1, cy: carCell.cy, dir: "right" },
+            { cx: carCell.cx - 1, cy: carCell.cy, dir: "left" },
+            { cx: carCell.cx, cy: carCell.cy + 1, dir: "down" },
+            { cx: carCell.cx, cy: carCell.cy - 1, dir: "up" }
+          ];
+
+          for (const n of neighbors) {
+            if (n.cx < 0 || n.cx >= layout.cols || n.cy < 0 || n.cy >= layout.rows) continue;
+            if (!isCellWalkable(hubCfg, n.cx, n.cy)) continue;
+
+            const rr = cellToRect(n.cx, n.cy, layout);
+
+            let x = rr.x + rr.w / 2;
+            let y = rr.y + rr.h / 2;
+
+            const edgePad = Math.max(3, Math.floor(layout.cellSize * 0.12));
+
+            if (n.dir === "right") x = rr.x + edgePad;
+            if (n.dir === "left")  x = rr.x + rr.w - edgePad;
+            if (n.dir === "down")  y = rr.y + edgePad;
+            if (n.dir === "up")    y = rr.y + rr.h - edgePad;
+
+            if (!isValidStandPoint(hubCfg, layout, x, y, car, props)) continue;
+
+            chosen = { x, y };
+            break;
+          }
         }
       }
 
-      // На всякий случай, если вдруг всё занято
-      if (!foundPos) {
-        foundPos = {
-          x: centerX,
-          y: car.y + car.h + Math.max(4, car.h * 0.2)
-        };
+      // крайний fallback: как было (в центр под машиной)
+      if (!chosen) {
+        chosen = { x: car.x + car.w / 2, y: car.y + car.h + Math.max(6, layout.cellSize * 0.2) };
       }
 
       state.hub.inCar = false;
-      state.hub.x = foundPos.x;
-      state.hub.y = foundPos.y;
+      state.hub.x = chosen.x;
+      state.hub.y = chosen.y;
     } else {
-      // СЕСТЬ В МАШИНУ — центр по машине
       state.hub.inCar = true;
       state.hub.x = car.x + car.w / 2;
       state.hub.y = car.y + car.h / 2;
@@ -579,13 +910,12 @@ function handleHubInteract() {
     return;
   }
 
-  // В машине нельзя интерактить здания
   if (state.hub.inCar) return;
 
-  const nearPoi = buildings.find((poi) => isNearPOI(poi));
+  // ===== здания: интеракт ТОЛЬКО если игрок реально в полосе =====
+  const nearPoi = buildings.find((b) => isNearPOI(b));
   if (!nearPoi) return;
 
-  // Логика завязана на тип здания
   if (nearPoi.type === "gas") {
     const amount = 10;
     const cost = amount * 1;
@@ -621,12 +951,6 @@ function handleHubInteract() {
   }
 }
 
-/**
- * Ресайз канваса остановки
- * — подгоняем под высоту контейнера минус нижнюю панель
- * — сохраняем относительную позицию игрока, чтобы он не телепортировался
- *   и не оказывался под меню
- */
 function resizeStopCanvas() {
   if (!stopCanvas) return;
 
@@ -634,49 +958,60 @@ function resizeStopCanvas() {
   /** @type {HTMLElement|null} */
   const bottomBarEl = document.querySelector(".stop-bottom-bar");
 
-  const bottomBarHeight =
-    (bottomBarEl && bottomBarEl.clientHeight) ? bottomBarEl.clientHeight : 172;
-
-  const prevW =
-    stopCanvas.width ||
-    (container ? container.clientWidth : stopCanvas.clientWidth) ||
-    1;
-
-  const prevH =
-    stopCanvas.height ||
-    (container ? container.clientHeight - bottomBarHeight : stopCanvas.clientHeight - bottomBarHeight) ||
-    1;
-
   const width = container ? container.clientWidth : stopCanvas.clientWidth;
-  let height =
-    (container ? container.clientHeight : stopCanvas.clientHeight) -
-    bottomBarHeight;
+  const totalHeight = container ? container.clientHeight : stopCanvas.clientHeight;
 
-  if (height < 100) height = 100;
+  if (width <= 0 || totalHeight <= 0) return;
 
-  if (width > 0 && height > 0) {
-    stopCanvas.width = width;
-    stopCanvas.height = height;
+  // 1) сначала считаем layout при канвасе высотой "всё пространство кроме минимальной панели"
+  const maxCanvasHeight = Math.max(100, totalHeight - STOP_BOTTOM_BAR_MIN_HEIGHT);
+
+  // временно считаем layout так, чтобы по ширине занять максимум
+  const tmpLayout = computeGridLayout(width, maxCanvasHeight);
+
+  // хотим канвас ровно под сетку => canvasHeight = gridH
+  let canvasHeight = tmpLayout.gridH;
+
+  // если сетка всё равно не влезла по высоте (бывает при очень низком окне) — ужимаем
+  if (canvasHeight > maxCanvasHeight) {
+    const fittedLayout = computeGridLayout(width, maxCanvasHeight);
+    canvasHeight = fittedLayout.gridH;
+  }
+
+  // bottomBar — всё, что осталось
+  let bottomBarHeight = totalHeight - canvasHeight;
+
+  // держим минимум
+  if (bottomBarHeight < STOP_BOTTOM_BAR_MIN_HEIGHT) {
+    bottomBarHeight = STOP_BOTTOM_BAR_MIN_HEIGHT;
+    canvasHeight = Math.max(100, totalHeight - bottomBarHeight);
+  }
+
+  stopCanvas.width = width;
+  stopCanvas.height = canvasHeight;
+
+  // css-отступ снизу у canvas под панель
+  stopCanvas.style.bottom = `${bottomBarHeight}px`;
+
+  if (bottomBarEl) {
+    bottomBarEl.style.height = `${bottomBarHeight}px`;
   }
 
   if (state.mode === "stop") {
-    // Если уже есть нормализованные координаты — рескейлим
-    if (
-      typeof state.hub.xNorm === "number" &&
-      typeof state.hub.yNorm === "number"
-    ) {
-      state.hub.x = state.hub.xNorm * width;
-      state.hub.y = state.hub.yNorm * height;
+    const layout = computeGridLayout(stopCanvas.width, stopCanvas.height);
+
+    if (typeof state.hub.xNorm === "number" && typeof state.hub.yNorm === "number") {
+      state.hub.x = layout.offsetX + state.hub.xNorm * layout.gridW;
+      state.hub.y = layout.offsetY + state.hub.yNorm * layout.gridH;
     } else {
-      const normX = state.hub.x / prevW;
-      const normY = state.hub.y / prevH;
-      state.hub.x = normX * width;
-      state.hub.y = normY * height;
+      state.hub.x = clamp(state.hub.x, layout.offsetX, layout.offsetX + layout.gridW);
+      state.hub.y = clamp(state.hub.y, layout.offsetY, layout.offsetY + layout.gridH);
+
+      state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
+      state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
     }
 
-    if (width > 0 && height > 0) {
-      state.hub.xNorm = state.hub.x / width;
-      state.hub.yNorm = state.hub.y / height;
-    }
+    state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
+    state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
   }
 }

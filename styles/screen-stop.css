@@ -7,33 +7,31 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  position: relative; /* для абсолютного позиционирования нижней панели и канваса */
+  position: relative;
   overflow: hidden;
 }
 
-/*
-  Канвас теперь занимает всё пространство над нижней панелью.
-  Высота панели — 172px (см. ниже), поэтому bottom: 172px.
-*/
+/* Canvas рисуется вверху. Реальную высоту задаём JS-ом через canvas.height. */
 .screen-stop canvas {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 172px;
+  bottom: 0; /* JS будет задавать отступ снизу через style.bottom */
   width: 100%;
   margin: 0;
   border-radius: 0;
   border: none;
 }
 
-/* Нижняя панель статов/инвентаря закреплена у низа экрана остановки */
+/* Нижняя панель закреплена снизу и может РАСТЯГИВАТЬСЯ по высоте (JS выставит height) */
 .stop-bottom-bar {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 172px; /* фиксируем высоту, под неё "выкраивается" место у канваса */
+
+  height: 172px; /* минимальная высота, JS может увеличить */
   display: flex;
   align-items: center;
   justify-content: space-between;

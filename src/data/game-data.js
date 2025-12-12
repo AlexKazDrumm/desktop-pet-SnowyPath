@@ -1,5 +1,11 @@
 // game-data.js
 
+/**
+ * @typedef {{id:number, distance:number, hungerLoss:number, fatigueLoss:number, hasGasStation:boolean, hasDiner:boolean, hasMotel:boolean}} Segment
+ * @typedef {{id:string, segmentIndex:number, name:string, basePay:number, minPay:number, maxPay:number, dangerLevel:'none'|'suspicious', description:string}} Hitchhiker
+ * @typedef {{x:number,y:number}} Point
+ */
+
 /** @type {Segment[]} */
 const segments = [
   { id: 1, distance: 30, hungerLoss: 10, fatigueLoss: 15, hasGasStation: true,  hasDiner: true,  hasMotel: false },
@@ -69,7 +75,7 @@ const hitchhikers = [
   { id: "s8_h2", segmentIndex: 7, name: "Хиппи",                        basePay: 14, minPay: 10, maxPay: 18, dangerLevel: "none",        description: "Говорит про свободу и музыку." },
   { id: "s8_h3", segmentIndex: 7, name: "Водитель без машины",          basePay: 16, minPay: 12, maxPay: 20, dangerLevel: "none",        description: "Говорит, что его авто в ремонте." },
   { id: "s8_h4", segmentIndex: 7, name: "Человек с кейсом",             basePay: 26, minPay: 20, maxPay: 34, dangerLevel: "none",        description: "Кейс не отпускает из рук." },
-  { id: "s8_h5", segmentIndex: 7, name: "Молчащий пассажир",            basePay: 32, minPay: 22, maxPay: 42, dangerLevel: "suspicious",  description: "Его взгляд трудно прочитать." },
+  { id: "s8_h5", segmentIndex: 7, name: "Молчащий пассажир",           basePay: 32, minPay: 22, maxPay: 42, dangerLevel: "suspicious",  description: "Его взгляд трудно прочитать." },
 
   // S9
   { id: "s9_h1", segmentIndex: 8, name: "Ветеринар",                    basePay: 8,  minPay: 5,  maxPay: 10, dangerLevel: "none",        description: "Везёт лекарства для животных." },
@@ -102,6 +108,27 @@ const cumulativeDistances = (() => {
   return arr;
 })();
 
+/**
+ * Персонажи
+ * @typedef {'tourist'|'worker'|'forester'|'mechanic'} CharacterId
+ * @typedef {{
+ *   id: CharacterId;
+ *   name: string;
+ *   role: string;
+ *   description: string;
+ *   avatarKey: string;
+ *   spritePrefix: string;
+ *   hungerLossMultiplier: number;
+ *   fatigueLossMultiplier: number;
+ *   repairChance: number;
+ *   baseFuel: number;
+ *   baseMoney: number;
+ *   baseHunger: number;
+ *   baseFatigue: number;
+ *   inventory: Array<{id:string; name:string; iconKey:string; description:string;}>;
+ * }} CharacterConfig
+ */
+
 /** @type {CharacterConfig[]} */
 const characters = [
   {
@@ -119,12 +146,7 @@ const characters = [
     baseHunger: 80,
     baseFatigue: 80,
     inventory: [
-      {
-        id: "map",
-        name: "Карта",
-        iconKey: "item_map",
-        description: "Старая дорожная карта с пометками маршрутов."
-      }
+      { id: "map", name: "Карта", iconKey: "item_map", description: "Старая дорожная карта с пометками маршрутов." }
     ]
   },
   {
@@ -142,12 +164,7 @@ const characters = [
     baseHunger: 80,
     baseFatigue: 90,
     inventory: [
-      {
-        id: "pistol",
-        name: "Пистолет",
-        iconKey: "item_pistol",
-        description: "Лицензированное оружие самообороны."
-      }
+      { id: "pistol", name: "Пистолет", iconKey: "item_pistol", description: "Лицензированное оружие самообороны." }
     ]
   },
   {
@@ -165,12 +182,7 @@ const characters = [
     baseHunger: 90,
     baseFatigue: 85,
     inventory: [
-      {
-        id: "axe",
-        name: "Топор",
-        iconKey: "item_axe",
-        description: "Тяжёлый рабочий топор. Полезен в глуши."
-      }
+      { id: "axe", name: "Топор", iconKey: "item_axe", description: "Тяжёлый рабочий топор. Полезен в глуши." }
     ]
   },
   {
@@ -188,12 +200,7 @@ const characters = [
     baseHunger: 80,
     baseFatigue: 80,
     inventory: [
-      {
-        id: "canister",
-        name: "Канистра",
-        iconKey: "item_canister",
-        description: "Пластиковая канистра с запасом топлива."
-      }
+      { id: "canister", name: "Канистра", iconKey: "item_canister", description: "Пластиковая канистра с запасом топлива." }
     ]
   }
 ];
@@ -209,535 +216,226 @@ function getCharacterById(id) {
 }
 
 /**
- * Типы зданий в хабе
+ * ===== Хабы на сетке (ASCII) =====
+ *
+ * Сетка фиксирована по размеру: 10x6 (колонки x строки).
+ * ВАЖНО: Рисуется квадратными ячейками, а вся сетка центрируется (letterbox),
+ * чтобы не ломать пропорцию/растяжение старой сцены.
+ *
+ * Легенда тайлов:
+ *   # — дорога (road)
+ *   s — тротуар (sidewalk)
+ *   . — снег (snow)
+ *   g — трава (grass)
+ *
+ * Объекты (занимают клетки):
+ *   G — gas (заправка)
+ *   F — food (еда)
+ *   H — hotel (гостиница)
+ *   W — work (подработка)
+ *   C — машина игрока (car spawn)
+ *
+ * Мультиклеточные здания:
+ *   просто рисуй букву прямоугольником (например 2x2 GGGG и т.п.).
+ *
  * @typedef {'gas'|'food'|'hotel'|'work'} HubBuildingType
- */
-
-/**
+ *
  * @typedef {{
- *   id?: string;
+ *   id: string;
  *   type: HubBuildingType;
  *   label: string;
  *   hint: string;
- *   relX: number;
- *   relY: number;
- *   relW: number;
- *   relH: number;
- *   spriteKey?: string; // опциональный индивидуальный спрайт для этого здания
- * }} HubBuildingConfig
- */
-
-/**
- * @typedef {{
- *   relX: number;
- *   relY: number;
- *   relW: number;
- *   relH: number;
- * }} HubCarConfig
- */
-
-/**
+ *   spriteKey?: string;
+ * }} HubBuildingMeta
+ *
  * @typedef {{
  *   pointIndex: number;
- *   backgroundKey?: string; // фон хаба (город)
- *   car?: HubCarConfig;     // позиция машины игрока
- *   buildings: HubBuildingConfig[];
- * }} HubConfig
+ *   themeKey: string; // префикс спрайтов тайлов/дорог для конкретного хаба: hub0, hub1, ...
+ *   grid: string[];   // ASCII-карта, 6 строк по 10 символов
+ * }} HubGridConfig
  */
 
 /**
- * Конфигурация 10 хабов (по индексу точки маршрута: 0..9)
- * Координаты нормализованы (0..1 относительно ширины/высоты канваса)
- * backgroundKey — ключ спрайта фона (можно завести hubBg0..hubBg9).
+ * ===== Хабы на сетке (ASCII) =====
+ *
+ * Сетка фиксирована по размеру: 16x6 (колонки x строки).
+ * ВАЖНО: строки ASCII должны быть РОВНО 16 символов.
+ *
+ * Легенда тайлов:
+ *   # — дорога (road)
+ *   s — тротуар (sidewalk)
+ *   . — снег (snow)
+ *   g — трава (grass)
+ *
+ * Объекты (занимают клетки):
+ *   G — gas (заправка)
+ *   F — food (еда)
+ *   H — hotel (гостиница)
+ *   W — work (подработка)
+ *   C — машина игрока (car spawn)
+ *
+ * Мультиклеточные здания:
+ *   просто рисуй букву прямоугольником (например 2x2 G и т.п.).
+ *
+ * @typedef {'gas'|'food'|'hotel'|'work'} HubBuildingType
+ *
+ * @typedef {{
+ *   id: string;
+ *   type: HubBuildingType;
+ *   label: string;
+ *   hint: string;
+ *   spriteKey?: string;
+ * }} HubBuildingMeta
+ *
+ * @typedef {{
+ *   pointIndex: number;
+ *   themeKey: string;
+ *   grid: string[];   // ASCII-карта, 6 строк по 16 символов
+ * }} HubGridConfig
  */
-const hubConfigs = /** @type {HubConfig[]} */ ([
+
+// ===== Хабы на сетке (ASCII) =====
+
+const HUB_GRID_COLS = 16;
+const HUB_GRID_ROWS = 6;
+
+/** @type {Record<string, HubBuildingMeta>} */
+const hubBuildingMetaByChar = {
+  G: { id: "gas",   type: "gas",   label: "Заправка",   hint: "E — купить 10 топлива за 10₽.", spriteKey: "hubGas" },
+  F: { id: "food",  type: "food",  label: "Еда",        hint: "E — поесть (+40 сытости за 10₽).", spriteKey: "hubFood" },
+  H: { id: "hotel", type: "hotel", label: "Гостиница",  hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).", spriteKey: "hubHotel" },
+  W: { id: "work",  type: "work",  label: "Подработка", hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).", spriteKey: "hubWork" }
+};
+
+/**
+ * 10 хабов: ASCII 16x6.
+ * Тут сохранена твоя исходная 10x6 компоновка, просто добавлены поля по 3 клетки снега слева и справа:
+ *   "..." + (старые 10 символов) + "..."
+ */
+const hubGridConfigs = /** @type {HubGridConfig[]} */ ([
   {
     pointIndex: 0,
-    backgroundKey: "hubBg0",
-    car: {
-      relX: 0.45, // низ, примерно по центру, под зданиями
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.12,
-        relY: 0.26,
-        relW: 0.17,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.42,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.12,
-        relY: 0.60,
-        relW: 0.19,
-        relH: 0.22
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.45,
-        relY: 0.60,
-        relW: 0.19,
-        relH: 0.22
-      }
+    themeKey: "hub0",
+    grid: [
+      "...ssss######...",
+      "...sGGs#....#WW.",
+      "...s..s#..F.#WW.",
+      ".HHssss#....#...",
+      ".HH....#....#...",
+      ".......###C##..."
     ]
   },
-
   {
     pointIndex: 1,
-    backgroundKey: "hubBg1",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.65,
-        relY: 0.22,
-        relW: 0.17,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.25,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.68,
-        relY: 0.58,
-        relW: 0.19,
-        relH: 0.22
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.28,
-        relY: 0.62,
-        relW: 0.19,
-        relH: 0.22
-      }
+    themeKey: "hub1",
+    grid: [
+      "...######ssss...",
+      "...#....#sG.s...",
+      "...#..F.#s..s...",
+      "...#..H.#ssss...",
+      "...#..W.#.......",
+      "...##C###......."
     ]
   },
-
   {
     pointIndex: 2,
-    backgroundKey: "hubBg2",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.18,
-        relY: 0.24,
-        relW: 0.16,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.60,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.20,
-        relY: 0.60,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.58,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      }
+    themeKey: "hub2",
+    grid: [
+      "...ssss######...",
+      "...s..s#....#...",
+      "...sG.s#..F.#...",
+      "...s..s#..H.#...",
+      "...ssss#..W.#...",
+      ".......##C###..."
     ]
   },
-
   {
     pointIndex: 3,
-    backgroundKey: "hubBg3",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.40,
-        relY: 0.16,
-        relW: 0.20,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.10,
-        relY: 0.30,
-        relW: 0.18,
-        relH: 0.18
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.70,
-        relY: 0.32,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.40,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      }
+    themeKey: "hub3",
+    grid: [
+      "...######ssss...",
+      "...#....#s..s...",
+      "...#..G.#sF.s...",
+      "...#..H.#s..s...",
+      "...#..W.#s..s...",
+      "...##C###ssss..."
     ]
   },
-
   {
     pointIndex: 4,
-    backgroundKey: "hubBg4",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.18,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.64,
-        relY: 0.22,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.20,
-        relY: 0.60,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.62,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      }
+    themeKey: "hub4",
+    grid: [
+      "...ssss######...",
+      "...sW.s#....#...",
+      "...s..s#..G.#...",
+      "...ssss#..F.#...",
+      ".......#..H.#...",
+      ".......##C###..."
     ]
   },
-
   {
     pointIndex: 5,
-    backgroundKey: "hubBg5",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.08,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.38,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.68,
-        relY: 0.22,
-        relW: 0.18,
-        relH: 0.22
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.42,
-        relY: 0.64,
-        relW: 0.20,
-        relH: 0.23
-      }
+    themeKey: "hub5",
+    grid: [
+      "...######ssss...",
+      "...#....#sW.s...",
+      "...#..G.#s..s...",
+      "...#..F.#ssss...",
+      "...#..H.#.......",
+      "...##C###......."
     ]
   },
-
   {
     pointIndex: 6,
-    backgroundKey: "hubBg6",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.10,
-        relY: 0.58,
-        relW: 0.18,
-        relH: 0.22
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.24,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.70,
-        relY: 0.60,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.62,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      }
+    themeKey: "hub6",
+    grid: [
+      "...ssss######...",
+      "...s..s#....#...",
+      "...sG.s#..H.#...",
+      "...s..s#..F.#...",
+      "...ssss#..W.#...",
+      ".......###C##..."
     ]
   },
-
   {
     pointIndex: 7,
-    backgroundKey: "hubBg7",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.35,
-        relY: 0.22,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.12,
-        relY: 0.60,
-        relW: 0.18,
-        relH: 0.22
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.70,
-        relY: 0.58,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.38,
-        relY: 0.64,
-        relW: 0.20,
-        relH: 0.23
-      }
+    themeKey: "hub7",
+    grid: [
+      "...######ssss...",
+      "...#....#sG.s...",
+      "...#..F.#s..s...",
+      "...#..H.#s..s...",
+      "...#..W.#ssss...",
+      "...##C###......."
     ]
   },
-
   {
     pointIndex: 8,
-    backgroundKey: "hubBg8",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.14,
-        relY: 0.18,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.52,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.20,
-        relY: 0.56,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.60,
-        relY: 0.58,
-        relW: 0.20,
-        relH: 0.23
-      }
+    themeKey: "hub8",
+    grid: [
+      "...ssss######...",
+      "...sF.s#....#...",
+      "...s..s#..G.#...",
+      "...ssss#..W.#...",
+      ".......#..H.#...",
+      ".......##C###..."
     ]
   },
-
   {
     pointIndex: 9,
-    backgroundKey: "hubBg9",
-    car: {
-      relX: 0.45,
-      relY: 0.88,
-      relW: 0.12,
-      relH: 0.10
-    },
-    buildings: [
-      {
-        type: "gas",
-        label: "Заправка",
-        hint: "E — купить 10 топлива за 10₽.",
-        relX: 0.08,
-        relY: 0.24,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "food",
-        label: "Еда",
-        hint: "E — поесть (+40 сытости за 10₽).",
-        relX: 0.70,
-        relY: 0.20,
-        relW: 0.18,
-        relH: 0.20
-      },
-      {
-        type: "hotel",
-        label: "Гостиница",
-        hint: "E — поспать (до 100 бодрости за 25₽, -10 сытости).",
-        relX: 0.16,
-        relY: 0.62,
-        relW: 0.20,
-        relH: 0.23
-      },
-      {
-        type: "work",
-        label: "Подработка",
-        hint: "E — поработать (+30₽, -10 сытости, -10 бодрости).",
-        relX: 0.66,
-        relY: 0.64,
-        relW: 0.20,
-        relH: 0.23
-      }
+    themeKey: "hub9",
+    grid: [
+      "...######ssss...",
+      "...#....#s..s...",
+      "...#..W.#sF.s...",
+      "...#..H.#s..s...",
+      "...#..G.#ssss...",
+      "...##C###......."
     ]
   }
 ]);
+
+function getHubGridConfig(pointIndex) {
+  const idx = Math.max(0, Math.min(pointIndex || 0, hubGridConfigs.length - 1));
+  return hubGridConfigs[idx];
+}

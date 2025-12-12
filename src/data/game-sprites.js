@@ -1,30 +1,59 @@
 // game-sprites.js
 
+/**
+ * ВАЖНО:
+ * Теперь хабы — тайловые. Нужны:
+ *
+ * БАЗОВЫЕ тайлы (generic):
+ *  - tile_snow
+ *  - tile_sidewalk
+ *  - tile_grass
+ *
+ * Дороги (generic):
+ *  - road_straight
+ *  - road_corner
+ *  - road_t
+ *  - road_cross
+ *  - road_end
+ *
+ * Плюс можно (и нужно) сделать разные стили для каждого хаба (themeKey),
+ * просто добавив спрайты с префиксом themeKey + '_' :
+ *
+ * Пример для hub0:
+ *  - hub0_tile_snow, hub0_tile_sidewalk, hub0_tile_grass
+ *  - hub0_road_straight, hub0_road_corner, hub0_road_t, hub0_road_cross, hub0_road_end
+ *
+ * Если каких-то theme-спрайтов нет — будет fallback на generic.
+ */
+
 const spritePaths = {
   // базовый "игрок" — по умолчанию турист в стойке
   player: "assets/char_tourist_idle.png",
 
+  // сущности
   car: "assets/car.png",
-  hubGas: "assets/hub_gas.png",
-  hubFood: "assets/hub_food.png",
-  hubHotel: "assets/hub_hotel.png",
-  hubWork: "assets/hub_work.png",
   hitchhiker: "assets/hitchhiker.png",
   mapPoint: "assets/map_point.png",
   mapPointCurrent: "assets/map_point_current.png",
   mapPointLocked: "assets/map_point_locked.png",
 
-  // Фоны хабов (города)
-  hubBg0: "assets/hub_bg_0.png",
-  hubBg1: "assets/hub_bg_1.png",
-  hubBg2: "assets/hub_bg_2.png",
-  hubBg3: "assets/hub_bg_3.png",
-  hubBg4: "assets/hub_bg_4.png",
-  hubBg5: "assets/hub_bg_5.png",
-  hubBg6: "assets/hub_bg_6.png",
-  hubBg7: "assets/hub_bg_7.png",
-  hubBg8: "assets/hub_bg_8.png",
-  hubBg9: "assets/hub_bg_9.png",
+  // POI (здания)
+  hubGas: "assets/hub_gas.png",
+  hubFood: "assets/hub_food.png",
+  hubHotel: "assets/hub_hotel.png",
+  hubWork: "assets/hub_work.png",
+
+  // Тайлы (generic)
+  tile_snow: "assets/tiles/tile_snow.png",
+  tile_sidewalk: "assets/tiles/tile_sidewalk.png",
+  tile_grass: "assets/tiles/tile_grass.png",
+
+  // Дороги (generic)
+  road_straight: "assets/tiles/road_straight.png",
+  road_corner: "assets/tiles/road_corner.png",
+  road_t: "assets/tiles/road_t.png",
+  road_cross: "assets/tiles/road_cross.png",
+  road_end: "assets/tiles/road_end.png",
 
   // Персонажи: анимация ходьбы в хабе (3 кадра: idle, walk1, walk2)
   char_tourist_idle: "assets/char_tourist_idle.png",
@@ -53,7 +82,23 @@ const spritePaths = {
   item_canister: "assets/item_canister.png",
   item_axe: "assets/item_axe.png",
   item_map: "assets/item_map.png",
-  item_pistol: "assets/item_pistol.png"
+  item_pistol: "assets/item_pistol.png",
+
+  /**
+   * Примеры theme-спрайтов (НЕ обязательны, но рекомендуются).
+   * Если файлы не добавишь — всё равно будет работать через generic.
+   *
+   * Раскомментируй и создай файлы, когда будешь готов.
+   */
+  hub0_tile_snow: "assets/tiles/hub0/tile_snow.png",
+  hub0_tile_sidewalk: "assets/tiles/hub0/tile_sidewalk.png",
+  hub0_tile_grass: "assets/tiles/hub0/tile_grass.png",
+  hub0_road_straight: "assets/tiles/hub0/road_straight.png",
+  hub0_road_corner: "assets/tiles/hub0/road_corner.png",
+  hub0_road_t: "assets/tiles/hub0/road_t.png",
+  hub0_road_cross: "assets/tiles/hub0/road_cross.png",
+  hub0_road_end: "assets/tiles/hub0/road_end.png",
+  hub1_tile_snow: "assets/tiles/hub0/tile_snow.png",
 };
 
 /** @type {Record<string, HTMLImageElement>} */
@@ -63,4 +108,3 @@ for (const [key, src] of Object.entries(spritePaths)) {
   img.src = src;
   sprites[key] = img;
 }
-
