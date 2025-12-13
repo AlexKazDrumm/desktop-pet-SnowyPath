@@ -9,9 +9,9 @@ function triggerHitchhikerEvent(h) {
   const base = Number(h.basePay || 0);
   const minPay = Number(h.minPay || Math.max(0, base - 5));
   const maxPay = Number(h.maxPay || (base + 10));
-
+  // Open dialog showing the *offer* line only — name/description are shown in HUD
   roadDialogOpen(
-    [title, desc, `Он предлагает ${base}₽ (диапазон ${minPay}–${maxPay}).`],
+    [`Он предлагает ${base}₽ (диапазон ${minPay}–${maxPay}).`],
     [
       {
         id: "take_base",
