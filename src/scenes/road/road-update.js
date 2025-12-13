@@ -19,7 +19,8 @@ function updateRoad(dt) {
   }
 
   // ===== ИНИТ =====
-  if (typeof state.road.carX !== "number") state.road.carX = 8.5;
+  if (typeof state.road.carX !== "number") state.road.carX = ROAD_X1;
+  if (typeof state.road.carScreenRow !== "number") state.road.carScreenRow = ROAD_CAR_SCREEN_ROW;
 
   // угол руления (радианы): 0 = прямо; отриц = влево; полож = вправо
   if (typeof state.road.carAngle !== "number") state.road.carAngle = 0;
@@ -105,7 +106,9 @@ function updateRoad(dt) {
 
   // ===== ИНТЕРАКТ: только если въехали в зелёную зону =====
   const worldTopRow = Math.floor(state.road.scroll);
-  const carScreenRow = (typeof state.road.carScreenRow === "number") ? state.road.carScreenRow : 4;
+  const carScreenRow = (typeof state.road.carScreenRow === "number")
+    ? state.road.carScreenRow
+    : ROAD_CAR_SCREEN_ROW;
   const viewRows = (typeof ROAD_VIEW_ROWS === "number") ? ROAD_VIEW_ROWS : 6;
   const carWorldRow = worldTopRow + (viewRows - 1 - carScreenRow);
   const carCellX = Math.round(state.road.carX);

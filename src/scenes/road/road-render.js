@@ -166,7 +166,9 @@ function renderRoadScene() {
   const scroll = state.road.scroll || 0; // float
   const scrollInt = Math.floor(scroll);
   const scrollFrac = (scroll - scrollInt) || 0;
-  const carScreenRow = (typeof state.road.carScreenRow === "number") ? state.road.carScreenRow : 4;
+  const carScreenRow = (typeof state.road.carScreenRow === "number")
+    ? state.road.carScreenRow
+    : ROAD_CAR_SCREEN_ROW;
 
   const worldTopRow = Math.max(0, scrollInt);
   const worldBottomRow = worldTopRow + viewRows - 1;
@@ -209,7 +211,7 @@ function renderRoadScene() {
 
   // ===== roadside entities + interact zone =====
   const entities = Array.isArray(state.road.entities) ? state.road.entities : [];
-  const carCellX = Math.round(state.road.carX || 8.5);
+  const carCellX = Math.round((typeof state.road.carX === "number") ? state.road.carX : ROAD_X1);
   const carWorldRow = worldTopRow + (viewRows - 1 - carScreenRow);
 
   for (const ent of entities) {
@@ -247,10 +249,12 @@ function renderRoadScene() {
     ctx.fillRect(xr.x + 2, xr.y + 2, tag, tag);
   }
 
-  // ===== car =====
+  ctx.restore();
+
+  // ===== car ===== (рисуем без scroll-translate, машина стоит на месте)
   const carSy = carScreenRow;
   // draw car with fractional X (prevents visual "teleport" when rounding)
-  const cxF = (typeof state.road.carX === "number") ? state.road.carX : 8.5;
+  const cxF = (typeof state.road.carX === "number") ? state.road.carX : ROAD_X1;
   const carRect = {
     x: layout.x0 + Math.floor(cxF * layout.cellW),
     y: layout.y0 + carSy * layout.cellH,
@@ -261,8 +265,6 @@ function renderRoadScene() {
   // угол поворота (радианы), небольшой
   const carAngle = (typeof state.road.carAngle === "number") ? state.road.carAngle : 0;
   _drawCar(ctx, carRect, carAngle);
-
-  ctx.restore();
 
   // ===== menu (16x2) =====
   for (let y = 0; y < ROAD_MENU_ROWS; y++) {

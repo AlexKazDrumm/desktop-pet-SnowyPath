@@ -101,6 +101,10 @@ function tryStartTravelToSelected() {
     state.road.distanceTravelled = 0;
     state.road.pausedForEvent = false;
     state.road.hitchhikerEvents = [];
+    state.road.carX = ROAD_X1;
+    state.road.carScreenRow = ROAD_CAR_SCREEN_ROW;
+    state.road.carAngle = 0;
+    state.road.scroll = 0;
 
     // build world rows and roadside entities for the selected route
     try {
