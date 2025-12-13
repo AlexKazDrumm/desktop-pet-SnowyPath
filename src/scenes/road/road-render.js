@@ -188,6 +188,11 @@ function renderRoadScene() {
     ? getRoadSegmentTemplateByIndex(0).themeKey
     : "";
 
+  // local variant logic: road scene uses wide multi-column road, prefer vertical straight tiles
+  function computeRoadVariant(worldRows, x, worldRow) {
+    return { variant: "road_straight", rot: Math.PI / 2 };
+  }
+
   // draw one extra row above (sy = -1) so the incoming row is visible gradually
   for (let sy = -1; sy < viewRows; sy++) {
     // inverted mapping: higher worldRow -> closer to top

@@ -113,7 +113,7 @@ function tryStartTravelToSelected() {
         state.road.worldRows = buildRoadWorldRows(routeSegs);
       }
       if (typeof buildRoadEntities === "function") {
-        state.road.entities = buildRoadEntities(dist);
+        state.road.entities = buildRoadEntities(routeSegs);
       }
     } catch (e) {
       console.warn("Failed to build road rows/entities:", e);

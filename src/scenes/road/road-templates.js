@@ -16,7 +16,12 @@
 function _assert16(s) {
   const str = String(s ?? "");
   if (str.length === 16) return str;
-  if (str.length > 16) return str.slice(0, 16);
+  if (str.length > 16) {
+    const extra = str.length - 16;
+    const start = Math.floor(extra / 2);
+    return str.slice(start, start + 16);
+  }
+
   return str + ".".repeat(16 - str.length);
 }
 
