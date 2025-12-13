@@ -102,8 +102,18 @@ function isWalkableTileChar(ch) {
   return isRoadChar(ch) || isSidewalkChar(ch) || isSnowChar(ch) || isGrassChar(ch);
 }
 
+/**
+ * Здание — любая заглавная буква A-Z, кроме:
+ * - C (машина)
+ * - символов тайлов (# s . g)
+ * Это позволяет добавлять новые здания без правок кода (B, X, Y, ...).
+ */
 function isBuildingChar(ch) {
-  return ch === "G" || ch === "F" || ch === "H" || ch === "W";
+  if (!ch) return false;
+  if (ch === "C") return false;
+  if (isWalkableTileChar(ch)) return false;
+  if (ch === " ") return false;
+  return /^[A-Z]$/.test(ch);
 }
 
 /**
@@ -275,10 +285,16 @@ function parseHubAscii(hubCfg) {
         }
       }
 
-      const meta = hubBuildingMetaByChar[target] || null;
-      const label = meta ? meta.label : target;
-      const hint = meta ? meta.hint : "E — взаимодействовать";
+      const meta = (typeof hubBuildingMetaByChar === "object" && hubBuildingMetaByChar)
+        ? (hubBuildingMetaByChar[target] || null)
+        : null;
+
+      // ВАЖНО: безопасные дефолты
+      const label = meta && meta.label ? meta.label : "Здание";
+      const hint = meta && meta.hint ? meta.hint : "E — осмотреть (ничего полезного).";
       const spriteKey = meta && meta.spriteKey ? meta.spriteKey : null;
+
+      const type = meta && meta.type ? meta.type : "passive";
 
       buildings.push({
         char: target,
@@ -286,7 +302,7 @@ function parseHubAscii(hubCfg) {
         y0: minY,
         x1: maxX,
         y1: maxY,
-        type: meta ? meta.type : "work",
+        type,
         label,
         hint,
         spriteKey,
@@ -366,6 +382,22 @@ function fitSpriteInBox(img, boxX, boxY, boxW, boxH) {
 }
 
 /**
+ * Получить текущий спрайт машины персонажа (fallback на общий sprites.car)
+ */
+function getSelectedCarSprite() {
+  const cfg = (typeof getCharacterById === "function")
+    ? getCharacterById(state.selectedCharacterId || "tourist")
+    : null;
+
+  if (cfg && cfg.carSpriteKey && sprites && sprites[cfg.carSpriteKey]) {
+    const img = sprites[cfg.carSpriteKey];
+    if (img && img.complete && img.naturalWidth > 0) return img;
+  }
+
+  return sprites ? sprites.car : null;
+}
+
+/**
  * Машина: по высоте <= 50% клетки.
  * @param {{cx:number;cy:number}} carCell
  * @param {ReturnType<typeof computeGridLayout>} layout
@@ -383,7 +415,7 @@ function computeHubCarFromCell(carCell, layout) {
   const boxH = Math.floor(r.h * 0.50);
   const boxY = r.y + (r.h - boxH) / 2;
 
-  const carSprite = sprites.car;
+  const carSprite = getSelectedCarSprite();
   const fitted = fitSpriteInBox(carSprite, boxX, boxY, boxW, boxH);
 
   const padding = Math.max(6, cell * 0.18);
@@ -856,7 +888,6 @@ function openHub0NpcIntroDialog() {
   const D = window.StopDialogs;
 
   if (!D || typeof D.hub0Intro !== "function") {
-    // fallback на всякий случай
     openStopDialogVN(
       ["Местный: “Привет.”", "“Следи за ресурсами.”"],
       [{ id: "ok", label: "Ок", onPick: () => closeStopDialog() }],
@@ -1041,11 +1072,9 @@ function renderStopHub(dt) {
     state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
     state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
 
-    // при входе в новый хаб — сброс подсказок выхода (чисто локально)
     stopLocalFlags.hub0ExitHintShown = false;
   }
 
-  // хаб 0: вместо "диалога с воздуха" — только подсказки.
   const isHub0 = (hubCfg.pointIndex === 0);
 
   if (isHub0 && !stopLocalFlags.introShownAtHub0 && state.hub.inCar) {
@@ -1053,7 +1082,6 @@ function renderStopHub(dt) {
     showStopToast("Нажми E у машины, чтобы выйти. Рядом местный — он объяснит правила.", "info");
   }
 
-  // после выхода: только toast, диалог будет ТОЛЬКО при E у NPC
   if (isHub0 && !stopLocalFlags.hub0ExitHintShown && !state.hub.inCar) {
     stopLocalFlags.hub0ExitHintShown = true;
     showStopToast("Подойди к местному у заправки и нажми E, чтобы поговорить.", "info");
@@ -1246,7 +1274,7 @@ function renderStopHub(dt) {
   }
 
   if (car) {
-    const carSprite = sprites.car;
+    const carSprite = getSelectedCarSprite();
     if (carSprite && carSprite.complete && carSprite.naturalWidth > 0) {
       ctx.drawImage(carSprite, car.x, car.y, car.w, car.h);
     } else {
@@ -1434,7 +1462,6 @@ function handleHubInteract() {
       if (nearProp.id === "npc_instructor_gas" || nearProp.kind === "npc") {
         const isHub0 = (hubCfg.pointIndex === 0);
 
-        // ВАЖНО: интро для хаба 0 — только при реальном взаимодействии с NPC
         if (isHub0 && !stopLocalFlags.hub0NpcIntroDialogShown) {
           stopLocalFlags.hub0NpcIntroDialogShown = true;
           showStopToast("Разговор", "info");
@@ -1471,7 +1498,10 @@ function handleHubInteract() {
     adjustResources({ fuel: amount, money: -cost });
     showStopToast("+10 топлива", "good");
     renderStats();
-  } else if (nearPoi.type === "food") {
+    return;
+  }
+
+  if (nearPoi.type === "food") {
     const cost = 10;
     if (state.money < cost) {
       showStopToast("Не хватает денег.", "bad");
@@ -1481,7 +1511,10 @@ function handleHubInteract() {
     adjustResources({ money: -cost, hunger: 40 });
     showStopToast("+40 сытости", "good");
     renderStats();
-  } else if (nearPoi.type === "hotel") {
+    return;
+  }
+
+  if (nearPoi.type === "hotel") {
     const cost = 25;
     if (state.money < cost) {
       showStopToast("Не хватает денег.", "bad");
@@ -1494,12 +1527,20 @@ function handleHubInteract() {
     if (checkFailConditions()) return;
     showStopToast("Бодрость восстановлена", "good");
     renderStats();
-  } else if (nearPoi.type === "work") {
+    return;
+  }
+
+  if (nearPoi.type === "work") {
     adjustResources({ money: 30, hunger: -10, fatigue: -10 });
     if (checkFailConditions()) return;
     showStopToast("+30₽", "good");
     renderStats();
+    return;
   }
+
+  // ===== DEFAULT: пассивное/неизвестное здание — ничего не делаем, не ломаемся =====
+  showStopToast("Ничего интересного.", "info");
+  return;
 }
 
 /* ===== canvas resize ===== */

@@ -216,20 +216,42 @@
     </main>
   </div>
 
-  <!-- Порядок важен: сначала утилиты и данные, потом сцены, потом входная точка -->
+    <!-- Порядок важен: сначала утилиты и данные, потом сцены, потом входная точка -->
   <script src="src/core/game-utils.js"></script>
+
+  <!-- DATA (refactored) -->
+  <script src="src/data/routes/segments.js"></script>
+  <script src="src/data/routes/hitchhikers.js"></script>
+  <script src="src/data/routes/map.js"></script>
+
+  <script src="src/data/characters/characters.js"></script>
+
+  <script src="src/data/hubs/hub-constants.js"></script>
+  <script src="src/data/hubs/hub-buildings.js"></script>
+  <script src="src/data/hubs/hub-grids.js"></script>
+
+  <!-- Compatibility shim (kept) -->
   <script src="src/data/game-data.js"></script>
+
+  <!-- Sprites + dialogs -->
   <script src="src/data/game-sprites.js"></script>
   <script src="src/data/stop-dialogs.js"></script>
+
+  <!-- Core -->
   <script src="src/core/game-state.js"></script>
   <script src="src/core/game-canvas.js"></script>
+
+  <!-- Scenes -->
   <script src="src/scenes/scene-stop.js"></script>
   <script src="src/scenes/scene-map.js"></script>
   <script src="src/scenes/scene-road.js"></script>
   <script src="src/core/screens-core.js"></script>
   <script src="src/scenes/scene-menu.js"></script>
   <script src="src/scenes/scene-end.js"></script>
+
+  <!-- Input + main -->
   <script src="src/core/input.js"></script>
   <script src="src/core/game-main.js"></script>
+
 </body>
 </html>
