@@ -82,38 +82,32 @@ function updateRoad(dt) {
 
   // ===== ДВИЖЕНИЕ ВПЕРЁД: скролл =====
   if (typeof state.road.scroll !== "number") state.road.scroll = 0;
-  if (typeof state.road._scrollAcc !== "number") state.road._scrollAcc = 0;
 
-  // используем продольную компоненту скорости (vy), чтобы если руль повернут —
-  // прогресс по дороге уменьшался согласно косинусу угла
-  state.road._scrollAcc += dt * vy;
+  // интегрируем продольную компоненту скорости напрямую — даём плавный float-scroll
+  state.road.scroll += vy * dt;
 
-  while (state.road._scrollAcc >= 1.0) {
-    state.road._scrollAcc -= 1.0;
-    state.road.scroll += 1.0;
+  // конец пути?
+  if (state.road.scroll >= state.road.distanceTotal) {
+    state.road.scroll = state.road.distanceTotal;
 
-    // конец пути?
-    if (state.road.scroll >= state.road.distanceTotal) {
-      state.road.scroll = state.road.distanceTotal;
+    state.currentPointIndex = state.road.toPoint;
+    state.road.active = false;
 
-      state.currentPointIndex = state.road.toPoint;
-      state.road.active = false;
-
-      if (state.currentPointIndex >= mapPoints.length - 1) {
-        endSuccess();
-        return;
-      }
-
-      setScreen("screen-stop");
-      renderStats();
+    if (state.currentPointIndex >= mapPoints.length - 1) {
+      endSuccess();
       return;
     }
+
+    setScreen("screen-stop");
+    renderStats();
+    return;
   }
 
   // ===== ИНТЕРАКТ: только если въехали в зелёную зону =====
   const worldTopRow = Math.floor(state.road.scroll);
   const carScreenRow = (typeof state.road.carScreenRow === "number") ? state.road.carScreenRow : 4;
-  const carWorldRow = worldTopRow + carScreenRow;
+  const viewRows = (typeof ROAD_VIEW_ROWS === "number") ? ROAD_VIEW_ROWS : 6;
+  const carWorldRow = worldTopRow + (viewRows - 1 - carScreenRow);
   const carCellX = Math.round(state.road.carX);
 
   const entities = Array.isArray(state.road.entities) ? state.road.entities : [];

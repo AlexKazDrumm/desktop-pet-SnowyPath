@@ -165,14 +165,20 @@ function renderRoadScene() {
 
   const scroll = state.road.scroll || 0; // float
   const scrollInt = Math.floor(scroll);
+  const scrollFrac = (scroll - scrollInt) || 0;
   const carScreenRow = (typeof state.road.carScreenRow === "number") ? state.road.carScreenRow : 4;
 
   const worldTopRow = Math.max(0, scrollInt);
   const worldBottomRow = worldTopRow + viewRows - 1;
 
   // ===== draw tiles (16x6) =====
+  // apply fractional vertical offset for smooth sliding
+  ctx.save();
+  ctx.translate(0, Math.round(scrollFrac * layout.cellH));
+
   for (let sy = 0; sy < viewRows; sy++) {
-    const worldRow = worldTopRow + sy;
+    // inverted mapping: higher worldRow -> closer to top
+    const worldRow = worldTopRow + (viewRows - 1 - sy);
     const rowStr =
       state.road.worldRows && state.road.worldRows[worldRow]
         ? state.road.worldRows[worldRow]
@@ -204,14 +210,14 @@ function renderRoadScene() {
   // ===== roadside entities + interact zone =====
   const entities = Array.isArray(state.road.entities) ? state.road.entities : [];
   const carCellX = Math.round(state.road.carX || 8.5);
-  const carWorldRow = worldTopRow + carScreenRow;
+  const carWorldRow = worldTopRow + (viewRows - 1 - carScreenRow);
 
   for (const ent of entities) {
     if (!ent || ent.triggered) continue;
     const row = ent.row;
     if (row < worldTopRow || row > worldBottomRow) continue;
 
-    const sy = row - worldTopRow;
+    const sy = worldBottomRow - row;
 
     // зелёная интеракт-зона — на дороге у правого края (x=ROAD_INTERACT_X)
     const zr = _roadCellRect(layout, ROAD_INTERACT_X, sy);
@@ -255,6 +261,8 @@ function renderRoadScene() {
   // угол поворота (радианы), небольшой
   const carAngle = (typeof state.road.carAngle === "number") ? state.road.carAngle : 0;
   _drawCar(ctx, carRect, carAngle);
+
+  ctx.restore();
 
   // ===== menu (16x2) =====
   for (let y = 0; y < ROAD_MENU_ROWS; y++) {

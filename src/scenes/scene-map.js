@@ -102,6 +102,21 @@ function tryStartTravelToSelected() {
     state.road.pausedForEvent = false;
     state.road.hitchhikerEvents = [];
 
+    // build world rows and roadside entities for the selected route
+    try {
+      const routeSegs = Array.isArray(segments) ? segments.slice(cur, sel) : [];
+      if (typeof buildRoadWorldRows === "function") {
+        state.road.worldRows = buildRoadWorldRows(routeSegs);
+      }
+      if (typeof buildRoadEntities === "function") {
+        state.road.entities = buildRoadEntities(dist);
+      }
+    } catch (e) {
+      console.warn("Failed to build road rows/entities:", e);
+      state.road.worldRows = state.road.worldRows || [];
+      state.road.entities = state.road.entities || [];
+    }
+
     // collect hitchhiker events between segments
     for (let segIdx = cur; segIdx < sel; segIdx++) {
       const seg = segments[segIdx];
