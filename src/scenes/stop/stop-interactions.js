@@ -57,14 +57,14 @@ function isNearProp(p) {
 
 /**
  * Проверка "точка стояния" валидна:
- * - в пределах сетки
+ * - в пределах сетки ГОРОДА (16x6)
  * - попадает в walkable клетку
  * - не коллизится с машиной
  * - не попадает в solid props
  */
-function isValidStandPoint(hubCfg, layout, x, y, car, props) {
-  const cell = pixelToCell(x, y, layout);
-  if (cell.cx < 0 || cell.cx >= layout.cols || cell.cy < 0 || cell.cy >= layout.rows) return false;
+function isValidStandPoint(hubCfg, cityLayout, x, y, car, props) {
+  const cell = pixelToCell(x, y, cityLayout);
+  if (cell.cx < 0 || cell.cx >= cityLayout.cols || cell.cy < 0 || cell.cy >= cityLayout.rows) return false;
   if (!isCellWalkable(hubCfg, cell.cx, cell.cy)) return false;
   if (car && collidesWithCar(x, y, car)) return false;
 
@@ -99,20 +99,22 @@ function handleHubInteract() {
   }
 
   const hubCfg = getCurrentHubGridConfig();
-  const layout = computeGridLayout(stopCanvas.width, stopCanvas.height);
+  const stage = computeStageLayout(stopCanvas.width, stopCanvas.height);
+  const cityLayout = deriveCityLayout(stage);
+
   const parsed = parseHubAscii(hubCfg);
 
-  const buildings = computeHubBuildingsFromCells(layout, parsed.buildings);
-  const car = computeHubCarFromCell(parsed.carCell, layout);
-  const props = computeHubProps(hubCfg, layout);
+  const buildings = computeHubBuildingsFromCells(cityLayout, parsed.buildings);
+  const car = computeHubCarFromCell(parsed.carCell, cityLayout);
+  const props = computeHubProps(hubCfg, cityLayout);
 
   const nearCar = car ? isNearCar(car) : false;
 
   // ===== машина =====
   if (nearCar && car) {
     if (state.hub.inCar) {
-      const rPlayer = getPlayerRadius(layout);
-      const gap = Math.max(3, Math.floor(layout.cellSize * 0.08));
+      const rPlayer = getPlayerRadius(cityLayout);
+      const gap = Math.max(3, Math.floor(cityLayout.cellSize * 0.08));
 
       const candidates = [
         { name: "right", x: car.x + car.w + gap + rPlayer, y: car.y + car.h / 2 },
@@ -124,7 +126,7 @@ function handleHubInteract() {
       let chosen = null;
 
       for (const c of candidates) {
-        if (!isValidStandPoint(hubCfg, layout, c.x, c.y, car, props)) continue;
+        if (!isValidStandPoint(hubCfg, cityLayout, c.x, c.y, car, props)) continue;
         chosen = { x: c.x, y: c.y };
         break;
       }
@@ -141,22 +143,22 @@ function handleHubInteract() {
           ];
 
           for (const n of neighbors) {
-            if (n.cx < 0 || n.cx >= layout.cols || n.cy < 0 || n.cy >= layout.rows) continue;
+            if (n.cx < 0 || n.cx >= cityLayout.cols || n.cy < 0 || n.cy >= cityLayout.rows) continue;
             if (!isCellWalkable(hubCfg, n.cx, n.cy)) continue;
 
-            const rr = cellToRect(n.cx, n.cy, layout);
+            const rr = cellToRect(n.cx, n.cy, cityLayout);
 
             let x = rr.x + rr.w / 2;
             let y = rr.y + rr.h / 2;
 
-            const edgePad = Math.max(3, Math.floor(layout.cellSize * 0.12));
+            const edgePad = Math.max(3, Math.floor(cityLayout.cellSize * 0.12));
 
             if (n.dir === "right") x = rr.x + edgePad;
             if (n.dir === "left")  x = rr.x + rr.w - edgePad;
             if (n.dir === "down")  y = rr.y + edgePad;
             if (n.dir === "up")    y = rr.y + rr.h - edgePad;
 
-            if (!isValidStandPoint(hubCfg, layout, x, y, car, props)) continue;
+            if (!isValidStandPoint(hubCfg, cityLayout, x, y, car, props)) continue;
 
             chosen = { x, y };
             break;
@@ -165,7 +167,7 @@ function handleHubInteract() {
       }
 
       if (!chosen) {
-        chosen = { x: car.x + car.w / 2, y: car.y + car.h + Math.max(6, layout.cellSize * 0.2) };
+        chosen = { x: car.x + car.w / 2, y: car.y + car.h + Math.max(6, cityLayout.cellSize * 0.2) };
       }
 
       state.hub.inCar = false;
@@ -199,8 +201,6 @@ function handleHubInteract() {
           state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
           const exists = state.inventory.some((x) => x && x.id === found.id);
           if (!exists) state.inventory.push(found);
-
-          renderInventoryUI();
 
           showStopToast("Найден предмет: Испорченный сэндвич", "good");
           openTrashDialogFirst();

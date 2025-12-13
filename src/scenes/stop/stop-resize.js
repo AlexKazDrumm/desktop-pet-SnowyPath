@@ -1,64 +1,66 @@
 // src/scenes/stop/stop-resize.js
 
 /**
- * Ресайз канваса stop + корректировка нижней панели.
- * Теперь нижняя панель НЕ имеет фиксированной высоты.
- * Мы измеряем её реальную высоту и под неё подрезаем канвас.
+ * Ресайз канваса stop под единый стейдж 16x8.
+ * HUD больше НЕ отдельный DOM-блок — рисуется в canvas.
  */
 
 function resizeStopCanvas() {
   if (!stopCanvas) return;
 
   const container = stopCanvas.parentElement;
-  /** @type {HTMLElement|null} */
-  const bottomBarEl = document.querySelector(".stop-bottom-bar");
+  const w = container ? container.clientWidth : stopCanvas.clientWidth;
+  const h = container ? container.clientHeight : stopCanvas.clientHeight;
 
-  const width = container ? container.clientWidth : stopCanvas.clientWidth;
-  const totalHeight = container ? container.clientHeight : stopCanvas.clientHeight;
+  if (w <= 0 || h <= 0) return;
 
-  if (width <= 0 || totalHeight <= 0) return;
+  // Подбор cellSize: по ширине 16 колонок, но если не влезает по высоте 8 строк — ужимаемся.
+  const cols = typeof HUB_GRID_COLS === "number" ? HUB_GRID_COLS : 16;
+  const stageRows = typeof HUB_STAGE_ROWS === "number" ? HUB_STAGE_ROWS : 8;
 
-  // 1) сначала выставим "черновые" размеры, чтобы DOM мог посчитать высоту HUD
-  stopCanvas.width = width;
-  stopCanvas.height = totalHeight;
-  stopCanvas.style.bottom = "0px";
+  let cellSize = Math.max(8, Math.floor(w / cols));
+  let wantH = cellSize * stageRows;
 
-  // 2) измеряем фактическую высоту нижней панели
-  let bottomBarHeight = 0;
-  if (bottomBarEl) {
-    const rect = bottomBarEl.getBoundingClientRect();
-    bottomBarHeight = Math.max(0, Math.floor(rect.height));
+  if (wantH > h) {
+    cellSize = Math.max(8, Math.floor(Math.min(w / cols, h / stageRows)));
+    wantH = cellSize * stageRows;
   }
 
-  // 3) доступная высота под канвас
-  const maxCanvasHeight = Math.max(100, totalHeight - bottomBarHeight);
+  const gridW = cols * cellSize;
 
-  // 4) канвас по высоте = ровно gridH (чтобы сетка не "плавала"), но не больше доступного
-  const layout = computeGridLayout(width, maxCanvasHeight);
-  const canvasHeight = Math.min(layout.gridH, maxCanvasHeight);
+  // Canvas оставляем по ширине контейнера, но реальный grid может быть уже — он центрируется offsetX в layout.
+  stopCanvas.width = w;
+  stopCanvas.height = wantH;
 
-  stopCanvas.width = width;
-  stopCanvas.height = canvasHeight;
+  // Визуально: пусть canvas занимает ровно то, что мы считаем "стейджем"
+  stopCanvas.style.width = "100%";
+  stopCanvas.style.height = `${wantH}px`;
+  stopCanvas.style.left = "0px";
+  stopCanvas.style.top = "0px";
+  stopCanvas.style.bottom = "auto";
 
-  // 5) канвас прижимаем над нижней панелью
-  stopCanvas.style.bottom = `${bottomBarHeight}px`;
-
-  // 6) пересчёт позиции игрока по нормализованным координатам
+  // Пересчёт позиции игрока по нормализованным координатам (только по миру 16x6)
   if (state.mode === "stop") {
-    const newLayout = computeGridLayout(stopCanvas.width, stopCanvas.height);
+    const stage = computeStageLayout(stopCanvas.width, stopCanvas.height);
+    const city = deriveCityLayout(stage);
 
     if (typeof state.hub.xNorm === "number" && typeof state.hub.yNorm === "number") {
-      state.hub.x = newLayout.offsetX + state.hub.xNorm * newLayout.gridW;
-      state.hub.y = newLayout.offsetY + state.hub.yNorm * newLayout.gridH;
+      state.hub.x = city.offsetX + state.hub.xNorm * city.gridW;
+      state.hub.y = city.offsetY + state.hub.yNorm * city.gridH;
     } else {
-      state.hub.x = clamp(state.hub.x, newLayout.offsetX, newLayout.offsetX + newLayout.gridW);
-      state.hub.y = clamp(state.hub.y, newLayout.offsetY, newLayout.offsetY + newLayout.gridH);
+      state.hub.x = clamp(state.hub.x, city.offsetX, city.offsetX + city.gridW);
+      state.hub.y = clamp(state.hub.y, city.offsetY, city.offsetY + city.gridH);
 
-      state.hub.xNorm = (state.hub.x - newLayout.offsetX) / newLayout.gridW;
-      state.hub.yNorm = (state.hub.y - newLayout.offsetY) / newLayout.gridH;
+      state.hub.xNorm = (state.hub.x - city.offsetX) / city.gridW;
+      state.hub.yNorm = (state.hub.y - city.offsetY) / city.gridH;
     }
 
-    state.hub.xNorm = (state.hub.x - newLayout.offsetX) / newLayout.gridW;
-    state.hub.yNorm = (state.hub.y - newLayout.offsetY) / newLayout.gridH;
+    state.hub.xNorm = (state.hub.x - city.offsetX) / city.gridW;
+    state.hub.yNorm = (state.hub.y - city.offsetY) / city.gridH;
   }
+
+  // DOM HUD НЕ прячем: он нужен тебе сейчас (аватар/статы/инвентарь в DOM могут жить параллельно).
+  // Если позже окончательно перейдёшь на canvas-HUD — тогда уберёшь DOM сам.
+  const bottomBarEl = document.querySelector(".stop-bottom-bar");
+  if (bottomBarEl) bottomBarEl.style.display = "none";
 }

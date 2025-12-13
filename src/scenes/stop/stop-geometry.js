@@ -28,35 +28,72 @@ function getMapChar(grid, x, y) {
 }
 
 /**
- * Вычисление параметров сетки в пикселях.
- * Приоритет: занять всю ширину (если помещается по высоте).
- * Сетка прибита к верху (offsetY=0).
+ * Общий layout для "стейджа" 16x8.
+ * Приоритет: влезть по ширине (16 колонок), но если по высоте не помещается — ужимаемся.
+ * offsetY = 0 (прибито к верху), offsetX центрируется если пришлось ужать cellSize из-за высоты.
  *
  * @param {number} canvasW
  * @param {number} canvasH
  */
-function computeGridLayout(canvasW, canvasH) {
+function computeStageLayout(canvasW, canvasH) {
   const cols = typeof HUB_GRID_COLS === "number" ? HUB_GRID_COLS : 16;
-  const rows = typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 6;
 
-  const cellByWidth = Math.max(8, Math.floor(canvasW / cols));
-  const gridHByWidth = cellByWidth * rows;
+  const stageRows = typeof HUB_STAGE_ROWS === "number"
+    ? HUB_STAGE_ROWS
+    : ((typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 6) + 2);
 
-  let cellSize = cellByWidth;
+  // сначала по ширине
+  let cellSize = Math.max(8, Math.floor(canvasW / cols));
+  let gridH = cellSize * stageRows;
 
-  if (gridHByWidth > canvasH) {
-    cellSize = Math.max(8, Math.floor(Math.min(canvasW / cols, canvasH / rows)));
+  // если по высоте не влезает — ужимаемся
+  if (gridH > canvasH) {
+    cellSize = Math.max(8, Math.floor(Math.min(canvasW / cols, canvasH / stageRows)));
+    gridH = cellSize * stageRows;
   }
 
   const gridW = cols * cellSize;
-  const gridH = rows * cellSize;
 
-  const nearFullWidth = Math.abs(canvasW - gridW) <= 2;
-
-  const offsetX = nearFullWidth ? 0 : Math.floor((canvasW - gridW) / 2);
+  // если gridW меньше canvasW (потому что ужали по высоте) — центрируем по X
+  const offsetX = Math.max(0, Math.floor((canvasW - gridW) / 2));
   const offsetY = 0;
 
-  return { cols, rows, cellSize, gridW, gridH, offsetX, offsetY };
+  const cityRows = typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 6;
+  const uiRows = stageRows - cityRows;
+
+  return {
+    cols,
+    stageRows,
+    cityRows,
+    uiRows,
+    cellSize,
+    gridW,
+    gridH,
+    offsetX,
+    offsetY,
+    cityY0: offsetY,
+    cityH: cityRows * cellSize,
+    hudY0: offsetY + cityRows * cellSize,
+    hudH: uiRows * cellSize
+  };
+}
+
+/**
+ * Производный layout только для "мира" (города) 16x6
+ * Использует тот же cellSize/offsetX/offsetY, но rows = cityRows.
+ *
+ * @param {ReturnType<typeof computeStageLayout>} stage
+ */
+function deriveCityLayout(stage) {
+  return {
+    cols: stage.cols,
+    rows: stage.cityRows,
+    cellSize: stage.cellSize,
+    gridW: stage.gridW,
+    gridH: stage.cityH,
+    offsetX: stage.offsetX,
+    offsetY: stage.offsetY
+  };
 }
 
 /**
@@ -86,7 +123,7 @@ function cellToRect(cx, cy, layout) {
  * Прямоугольник в пределах клетки по относительным координатам (0..1)
  * @param {number} cx
  * @param {number} cy
- * @param {ReturnType<typeof computeGridLayout>} layout
+ * @param {ReturnType<typeof deriveCityLayout>|ReturnType<typeof computeStageLayout>} layout
  * @param {number} relX
  * @param {number} relY
  * @param {number} relW
@@ -136,9 +173,63 @@ function fitSpriteInBox(img, boxX, boxY, boxW, boxH) {
 
 /**
  * Вычислить "радиус" игрока для коллизий/спавна
- * @param {ReturnType<typeof computeGridLayout>} layout
+ * @param {ReturnType<typeof deriveCityLayout>} cityLayout
  */
-function getPlayerRadius(layout) {
-  const drawSize = Math.max(6, Math.floor(layout.cellSize * 0.25));
+function getPlayerRadius(cityLayout) {
+  const drawSize = Math.max(6, Math.floor(cityLayout.cellSize * 0.25));
   return Math.max(3, drawSize / 2);
+}
+
+/**
+ * Прямоугольник HUD-зоны в координатах canvas:
+ *  - rows 6..7 (если cityRows=6, uiRows=2)
+ *
+ * @param {ReturnType<typeof computeStageLayout>} stage
+ */
+function getHudRect(stage) {
+  return {
+    x: stage.offsetX,
+    y: stage.hudY0,
+    w: stage.gridW,
+    h: stage.hudH
+  };
+}
+
+/**
+ * Прямоугольник "HUD клетки" по координатам меню (col 1..16, row 1..2).
+ * Внимание: меню — это нижние 2 строки canvas.
+ *
+ * @param {ReturnType<typeof computeStageLayout>} stage
+ * @param {number} uiCol1based 1..16
+ * @param {number} uiRow1based 1..2
+ */
+function hudCellToRect(stage, uiCol1based, uiRow1based) {
+  const cx = Math.max(1, Math.min(stage.cols, uiCol1based)) - 1; // 0-based
+  const ry = Math.max(1, Math.min(stage.uiRows, uiRow1based)) - 1; // 0..1
+  const x = stage.offsetX + cx * stage.cellSize;
+  const y = stage.hudY0 + ry * stage.cellSize;
+  const s = stage.cellSize;
+  return { x, y, w: s, h: s };
+}
+
+/**
+ * HUD-область по диапазону клеток (включительно), 1-based координаты.
+ *
+ * @param {ReturnType<typeof computeStageLayout>} stage
+ * @param {number} col0 1..16
+ * @param {number} col1 1..16
+ * @param {number} row0 1..2
+ * @param {number} row1 1..2
+ */
+function hudCellsToRect(stage, col0, col1, row0, row1) {
+  const c0 = Math.max(1, Math.min(stage.cols, col0)) - 1;
+  const c1 = Math.max(1, Math.min(stage.cols, col1)) - 1;
+  const r0 = Math.max(1, Math.min(stage.uiRows, row0)) - 1;
+  const r1 = Math.max(1, Math.min(stage.uiRows, row1)) - 1;
+
+  const x = stage.offsetX + c0 * stage.cellSize;
+  const y = stage.hudY0 + r0 * stage.cellSize;
+  const w = (c1 - c0 + 1) * stage.cellSize;
+  const h = (r1 - r0 + 1) * stage.cellSize;
+  return { x, y, w, h };
 }
