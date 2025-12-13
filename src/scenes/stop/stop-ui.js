@@ -40,7 +40,10 @@ const stopHudState = {
   toastKind: "info", // good|bad|info
   statsText: "",
   controlsTextDefault: "WASD/стрелки — ходьба • E — взаимодействие • M — карта",
-  controlsText: "WASD/стрелки — ходьба • E — взаимодействие • M — карта"
+  controlsText: "WASD/стрелки — ходьба • E — взаимодействие • M — карта",
+
+  // для авто-обновления статов
+  _lastStats: { money: null, fuel: null, hunger: null, fatigue: null }
 };
 
 /** ===== helpers ===== */
@@ -93,7 +96,7 @@ function getAvatarSrcByKey(avatarKey) {
   const key = String(avatarKey || "");
   if (!key) return "";
 
-  // 1) приоритет: то, что реально есть в sprites (это твой случай: avatar_tourist -> assets/avatars/tourist.png)
+  // 1) приоритет: то, что реально есть в sprites
   const img = (typeof sprites === "object" && sprites && sprites[key]) ? sprites[key] : null;
   if (img && img.src) return img.src;
 
@@ -102,7 +105,7 @@ function getAvatarSrcByKey(avatarKey) {
     return `assets/avatars/${key}.png`;
   }
 
-  // 3) fallback: прямой путь в avatars (редко, но пусть будет)
+  // 3) fallback
   return `assets/avatars/${key}.png`;
 }
 
@@ -142,29 +145,61 @@ function hideStopToast() {
 }
 
 /** ===== stats text (используется stop-render.js) ===== */
+
 function buildStopStatsText() {
   const money = typeof state.money === "number" ? state.money : 0;
   const fuel = typeof state.fuel === "number" ? state.fuel : 0;
   const hunger = typeof state.hunger === "number" ? state.hunger : 0;
   const fatigue = typeof state.fatigue === "number" ? state.fatigue : 0;
 
-  // компактно, чтобы влезало в 2 колонки
+  // компактно в 2 колонки (13-14)
   return `₽${money}\n⛽ ${fuel}\n🍖 ${hunger}\n😴 ${fatigue}`;
 }
 
 function renderStats() {
+  // ВАЖНО: HUD в canvas
   stopHudState.statsText = buildStopStatsText();
 
-  // верхняя панель (как было) может продолжать жить — если она есть в проекте
-  // (не ломаем старую механику)
-  const statsBar = qid("statsBar");
-  if (statsBar) {
-    statsBar.textContent = `₽${state.money} • ⛽${state.fuel} • 🍖${state.hunger} • 😴${state.fatigue}`;
+  // сверху (если есть) — не ломаем
+  try {
+    const statsBar = (typeof qid === "function") ? qid("statsBar") : null;
+    if (statsBar) {
+      statsBar.textContent = `₽${state.money} • ⛽${state.fuel} • 🍖${state.hunger} • 😴${state.fatigue}`;
+    }
+
+    const stopStats = (typeof qid === "function") ? qid("stopStats") : null;
+    if (stopStats) {
+      stopStats.innerHTML = String(stopHudState.statsText || "").replace(/\n/g, "<br/>");
+    }
+  } catch (e) {
+    // не валим рендер сцены, если DOM уже выключен/перестроен
+    console.error(e);
   }
-  const stopStats = qid("stopStats");
-  if (stopStats) {
-    stopStats.innerHTML = String(stopHudState.statsText || "").replace(/\n/g, "<br/>");
-  }
+}
+
+/**
+ * ВОТ ЭТОГО У ТЕБЯ НЕ БЫЛО.
+ * renderStopHub() зовёт syncStopStatsIfNeeded(), но функция отсутствовала => статы не синкались.
+ */
+function syncStopStatsIfNeeded() {
+  const money = typeof state.money === "number" ? state.money : 0;
+  const fuel = typeof state.fuel === "number" ? state.fuel : 0;
+  const hunger = typeof state.hunger === "number" ? state.hunger : 0;
+  const fatigue = typeof state.fatigue === "number" ? state.fatigue : 0;
+
+  const last = stopHudState._lastStats;
+
+  const changed =
+    last.money !== money ||
+    last.fuel !== fuel ||
+    last.hunger !== hunger ||
+    last.fatigue !== fatigue ||
+    !stopHudState.statsText; // если вдруг пусто — форсим
+
+  if (!changed) return;
+
+  stopHudState._lastStats = { money, fuel, hunger, fatigue };
+  renderStats();
 }
 
 /** ===== init ===== */
@@ -191,5 +226,6 @@ function initStopSceneUI() {
   setStopObjectTitle("");
   setStopHint("");
 
+  // первый рендер статов
   renderStats();
 }

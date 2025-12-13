@@ -97,17 +97,26 @@ function makeInteractAvatarPayload(avatarKey, kind, themeKey) {
   return { src, kind };
 }
 
+/**
+ * Улучшенный перенос:
+ * - переносит по словам
+ * - если слово длиннее maxWidth — режем по символам
+ * - учитывает высоту прямоугольника (не пытается рисовать больше строк, чем влезает)
+ */
 function drawTextInRect(ctx, text, r, opts) {
   const t = String(text || "");
   if (!t) return;
 
   const padding = opts && typeof opts.padding === "number" ? opts.padding : 8;
-  const fontSize = opts && typeof opts.fontSize === "number" ? opts.fontSize : 12;
+  let fontSize = opts && typeof opts.fontSize === "number" ? opts.fontSize : 12;
   const color = opts && opts.color ? opts.color : "#e5e7eb";
   const align = opts && opts.align ? opts.align : "left"; // left|center
   const baseline = opts && opts.baseline ? opts.baseline : "top"; // top|middle
-  const lineHeight = opts && typeof opts.lineHeight === "number" ? opts.lineHeight : Math.floor(fontSize * 1.25);
-  const maxLines = opts && typeof opts.maxLines === "number" ? opts.maxLines : 3;
+  let lineHeight = opts && typeof opts.lineHeight === "number" ? opts.lineHeight : Math.floor(fontSize * 1.25);
+  const maxLinesOpt = opts && typeof opts.maxLines === "number" ? opts.maxLines : 3;
+
+  const maxWidth = Math.max(0, r.w - padding * 2);
+  const maxHeight = Math.max(0, r.h - padding * 2);
 
   ctx.save();
   ctx.beginPath();
@@ -115,34 +124,97 @@ function drawTextInRect(ctx, text, r, opts) {
   ctx.clip();
 
   ctx.fillStyle = color;
-  ctx.font = `${fontSize}px monospace`;
   ctx.textAlign = align;
   ctx.textBaseline = baseline;
 
   const x = align === "center" ? (r.x + r.w / 2) : (r.x + padding);
   let y = r.y + padding;
 
-  const words = t.replace(/\r/g, "").split(/\s+/).filter(Boolean);
-  const lines = [];
-  let cur = "";
+  // реальное количество строк по высоте
+  const fitLinesByHeight = Math.max(1, Math.floor(maxHeight / Math.max(1, lineHeight)));
+  const maxLines = Math.max(1, Math.min(maxLinesOpt, fitLinesByHeight));
 
-  const maxWidth = r.w - padding * 2;
+  // поддержка явных переносов строк
+  const paragraphs = t.replace(/\r/g, "").split("\n");
 
-  for (const w of words) {
-    const test = cur ? `${cur} ${w}` : w;
-    const m = ctx.measureText(test);
-    if (m.width <= maxWidth) {
-      cur = test;
-    } else {
-      if (cur) lines.push(cur);
-      cur = w;
-    }
-    if (lines.length >= maxLines) break;
+  const outLines = [];
+
+  function pushLine(line) {
+    if (outLines.length < maxLines) outLines.push(line);
   }
-  if (cur && lines.length < maxLines) lines.push(cur);
 
-  for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], x, y);
+  function breakLongWord(word) {
+    // режем по символам так, чтобы влезало
+    let cur = "";
+    for (let i = 0; i < word.length; i++) {
+      const test = cur + word[i];
+      const m = ctx.measureText(test);
+      if (m.width <= maxWidth || !cur) {
+        cur = test;
+      } else {
+        pushLine(cur);
+        cur = word[i];
+        if (outLines.length >= maxLines) return;
+      }
+    }
+    if (cur && outLines.length < maxLines) pushLine(cur);
+  }
+
+  // сначала выставим font (после вычисления lineHeight тоже нужно)
+  ctx.font = `${fontSize}px monospace`;
+
+  for (let p = 0; p < paragraphs.length; p++) {
+    const raw = paragraphs[p].trim();
+    if (!raw) {
+      // пустая строка = перенос
+      pushLine("");
+      if (outLines.length >= maxLines) break;
+      continue;
+    }
+
+    const words = raw.split(/\s+/).filter(Boolean);
+    let cur = "";
+
+    for (const w of words) {
+      if (outLines.length >= maxLines) break;
+
+      const test = cur ? `${cur} ${w}` : w;
+      const mw = ctx.measureText(test).width;
+
+      if (mw <= maxWidth) {
+        cur = test;
+        continue;
+      }
+
+      // текущая строка заполнена — пушим
+      if (cur) {
+        pushLine(cur);
+        cur = "";
+        if (outLines.length >= maxLines) break;
+      }
+
+      // слово само по себе длиннее maxWidth — режем
+      const ww = ctx.measureText(w).width;
+      if (ww > maxWidth) {
+        breakLongWord(w);
+      } else {
+        cur = w;
+      }
+    }
+
+    if (cur && outLines.length < maxLines) pushLine(cur);
+
+    // разделяем абзацы
+    if (p < paragraphs.length - 1 && outLines.length < maxLines) {
+      // имитируем перенос строки
+      // (если хочешь прям пустую строку — раскомментируй)
+      // pushLine("");
+    }
+  }
+
+  // рисуем
+  for (let i = 0; i < outLines.length; i++) {
+    ctx.fillText(outLines[i], x, y);
     y += lineHeight;
     if (y > r.y + r.h) break;
   }
@@ -208,7 +280,7 @@ function renderStopHub(dt) {
     if (typeof resizeStopCanvas === "function") resizeStopCanvas();
   }
 
-  // синхронизация статов (чтобы не “пропадали”)
+  // ВАЖНО: теперь реально существует и будет обновлять stopHudState.statsText
   if (typeof syncStopStatsIfNeeded === "function") syncStopStatsIfNeeded();
 
   if (stopToastTimer > 0) {
@@ -399,7 +471,7 @@ function renderStopHub(dt) {
       ctx.lineWidth = 1;
 
       const dash = Math.max(2, Math.floor(cityLayout.cellSize * 0.12));
-      const gap  = Math.max(2, Math.floor(cityLayout.cellSize * 0.10));
+      const gap = Math.max(2, Math.floor(cityLayout.cellSize * 0.10));
       ctx.setLineDash([dash, gap]);
 
       ctx.strokeRect(
@@ -503,13 +575,14 @@ function renderStopHub(dt) {
   const paImg = paSrc ? getHudImageBySrc(paSrc) : null;
   drawAvatarInRect(ctx, paImg, rPlayerAvatar);
 
+  // ===== левый текст: теперь реально 2 строки под заголовок и 3 под подсказку =====
   drawPanel(ctx, rInteractText);
 
   const titleRect = {
     x: rInteractText.x + 8,
-    y: rInteractText.y + 8,
+    y: rInteractText.y + 6,
     w: rInteractText.w - 16,
-    h: Math.floor(rInteractText.h * 0.42)
+    h: Math.floor(rInteractText.h * 0.46)
   };
 
   const hintRect = {
@@ -520,18 +593,22 @@ function renderStopHub(dt) {
   };
 
   drawTextInRect(ctx, stopHudState.interactTitle, titleRect, {
-    fontSize: Math.max(11, Math.floor(stage.cellSize * 0.22)),
+    fontSize: Math.max(10, Math.floor(stage.cellSize * 0.18)),
     color: "#f8fafc",
-    maxLines: 1
+    maxLines: 2,
+    lineHeight: Math.max(12, Math.floor(stage.cellSize * 0.22)),
+    padding: 2
   });
 
   drawTextInRect(ctx, stopHudState.interactHint, hintRect, {
-    fontSize: Math.max(10, Math.floor(stage.cellSize * 0.18)),
+    fontSize: Math.max(9, Math.floor(stage.cellSize * 0.16)),
     color: "#e5e7eb",
-    maxLines: 2
+    maxLines: 3,
+    lineHeight: Math.max(11, Math.floor(stage.cellSize * 0.20)),
+    padding: 2
   });
 
-  // stats
+  // ===== stats =====
   drawPanel(ctx, rStats);
   drawTextInRect(ctx, stopHudState.statsText, rStats, {
     fontSize: Math.max(10, Math.floor(stage.cellSize * 0.18)),
@@ -541,7 +618,7 @@ function renderStopHub(dt) {
     padding: 10
   });
 
-  // dialog
+  // ===== dialog =====
   drawPanel(ctx, rDialog);
 
   if (stopDialogState.open) {
@@ -661,7 +738,6 @@ function renderStopHub(dt) {
       const startX = rInv.x + Math.max(8, Math.floor((rInv.w - totalW) / 2));
       const y0 = rInv.y + Math.max(6, Math.floor((rInv.h - slotSize) / 2));
 
-      // ВАЖНО: клипуем область инвентаря, чтобы бордеры/иконки не выходили за рамки rInv
       ctx.save();
       ctx.beginPath();
       ctx.rect(rInv.x + 1, rInv.y + 1, rInv.w - 2, rInv.h - 2);
@@ -711,7 +787,7 @@ function renderStopHub(dt) {
     padding: 4
   });
 
-  // ===== toast отключили полностью =====
+  // toast отключили полностью
 }
 
 /**
