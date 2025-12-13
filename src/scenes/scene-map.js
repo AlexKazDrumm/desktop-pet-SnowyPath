@@ -116,15 +116,6 @@ function tryStartTravelToSelected() {
       });
     }
 
-    // generate simple NPCs along the route for roadside interactions
-    state.road.npcs = [];
-    const totalRows = Math.max(1, Math.ceil(dist));
-    const npcCount = Math.max(0, Math.floor(totalRows / 12)); // roughly one NPC per ~12 rows
-    for (let i = 0; i < npcCount; i++) {
-      const pos = Math.floor((i + 1) * (totalRows / (npcCount + 1)));
-      state.road.npcs.push({ id: `road_npc_${i}`, position: pos, triggered: false });
-    }
-
     state.currentHitchhiker = null;
     state.lastMessage = `Вы выехали с точки ${cur + 1} к точке ${sel + 1}.`;
 

@@ -101,7 +101,9 @@ function createInitialState() {
 let state = createInitialState();
 
 /** @type {Record<string, boolean>} */
-const keysPressed = {};
+const keysPressed = (typeof window !== "undefined")
+  ? (window.keysPressed = window.keysPressed || {})
+  : {};
 
 /**
  * Корректировка ресурсов

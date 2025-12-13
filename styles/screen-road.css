@@ -1,7 +1,19 @@
-/* Дополнительные стили для экрана дороги (если понадобятся) */
-/* Пока всё тянется из base/components, но файл оставляем, чтобы можно было
-   навесить фишки именно для road-сцены. */
+/* Экран дороги как stop/map: только canvas на весь экран */
 
-#screen-road .card {
-  margin-top: 8px;
+.screen-road {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#roadCanvas {
+  width: auto;
+  height: auto;
+  display: block;
+
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }

@@ -89,7 +89,11 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", resizeStopCanvas);
 
   renderStats();
-  setupInput();
+  if (typeof window.setupInput === "function") {
+    window.setupInput();
+  } else {
+    console.error("[game-main] setupInput is not defined");
+  }
   setupMenuScene();
   setupEndScreen();
 

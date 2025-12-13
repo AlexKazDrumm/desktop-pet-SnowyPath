@@ -1,15 +1,34 @@
-// scene-road.js
+// src/scenes/scene-road.js
 
-// This file was split into smaller components under src/scenes/road/
-// The implementations now live in:
-//  - src/scenes/road/road-render.js
-//  - src/scenes/road/road-update.js
-//  - src/scenes/road/hitchhiker-event.js
-//  - src/scenes/road/fuel-event.js
+function ensureRoadSceneBound() {
+  if (ensureRoadSceneBound._bound) return;
+  ensureRoadSceneBound._bound = true;
 
-// Keep this file intentionally minimal to preserve the original script
-// include. The actual functions (updateRoad, renderRoadScene, etc.)
-// are provided by the component files which are loaded before this file.
+  window.addEventListener("resize", () => {
+    if (state && state.mode === "road") {
+      if (typeof resizeRoadCanvas === "function") resizeRoadCanvas();
+      if (typeof renderRoadScene === "function") renderRoadScene();
+    }
+  });
+}
+ensureRoadSceneBound._bound = false;
 
-/* noop loader */
+function enterRoadScene() {
+  const screen = document.getElementById("screen-road");
+  if (!screen) return;
 
+  roadCanvas = /** @type {HTMLCanvasElement|null} */ (document.getElementById("roadCanvas"));
+  if (!roadCanvas) return;
+
+  roadCtx = roadCanvas.getContext("2d");
+  if (roadCtx) roadCtx.imageSmoothingEnabled = false;
+
+  ensureRoadSceneBound();
+
+  if (typeof resizeRoadCanvas === "function") resizeRoadCanvas();
+  if (typeof renderRoadScene === "function") renderRoadScene();
+}
+
+if (typeof window !== "undefined") {
+  window.enterRoadScene = enterRoadScene;
+}

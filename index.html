@@ -111,13 +111,14 @@
           <p>На карте:</p>
           <ul>
             <li>Клик по достижимой точке — выбор</li>
-            <li>Кнопка «Поехать к выбранной точке» — старт сегмента</li>
+            <li>Enter — старт сегмента</li>
           </ul>
 
           <p>На дороге:</p>
           <ul>
-            <li>A/D или стрелки влево/вправо — смещение по полосе</li>
-            <li>События автостопщиков появляются по пути</li>
+            <li>A/D или стрелки влево/вправо — рулёжка (плавно)</li>
+            <li>Интеракт — только при въезде в зелёную зону</li>
+            <li>1–4 — выбрать вариант в диалоге, Enter — продолжить</li>
           </ul>
         </div>
 
@@ -180,24 +181,9 @@
         <canvas id="mapCanvas"></canvas>
       </section>
 
-      <!-- ROAD SCREEN -->
-      <section id="screen-road" class="screen hidden">
-        <h2>Дорога</h2>
-        <p class="screen-desc" id="roadStatus">Вы выехали на маршрут.</p>
-
-        <canvas id="roadCanvas" width="800" height="450"></canvas>
-
-        <p class="screen-desc small">
-          Управление: A/D или стрелки влево/вправо — смещение по полосе. Когда проезжаешь мимо автостопщика
-          или точки интереса, машина замедляется и вылезает событие.
-        </p>
-
-        <div class="card">
-          <h3>Событие</h3>
-          <div id="eventContainer"></div>
-        </div>
-
-        <button id="btnRoadContinue" class="primary" type="button">Продолжить поездку</button>
+      <!-- ROAD SCREEN (только canvas, как stop/map) -->
+      <section id="screen-road" class="screen screen-road hidden">
+        <canvas id="roadCanvas"></canvas>
       </section>
 
       <!-- END -->
@@ -259,11 +245,16 @@
   <script src="src/scenes/map/map-render.js"></script>
   <script src="src/scenes/scene-map.js"></script>
 
-  <!-- ROAD scene -->
-  <script src="src/scenes/road/road-render.js"></script>
-  <script src="src/scenes/road/road-update.js"></script>
+  <!-- ROAD scene (grid-based) -->
+  <script src="src/scenes/road/road-constants.js"></script>
+  <script src="src/scenes/road/road-templates.js"></script>
+  <script src="src/scenes/road/road-build.js"></script>
+  <script src="src/scenes/road/road-dialog.js"></script>
+  <script src="src/scenes/road/road-resize.js"></script>
   <script src="src/scenes/road/hitchhiker-event.js"></script>
   <script src="src/scenes/road/fuel-event.js"></script>
+  <script src="src/scenes/road/road-render.js"></script>
+  <script src="src/scenes/road/road-update.js"></script>
   <script src="src/scenes/scene-road.js"></script>
 
   <!-- Other scenes -->

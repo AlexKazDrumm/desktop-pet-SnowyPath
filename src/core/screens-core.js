@@ -54,15 +54,28 @@ function setScreen(screenId) {
     if (typeof enterMapScene === "function") {
       enterMapScene();
     }
-    renderMap();
+    if (typeof renderMap === "function") {
+      renderMap();
+    }
     if (typeof renderMapInfo === "function") {
       renderMapInfo();
     }
   } else if (screenId === "screen-stop") {
     state.mode = "stop";
-    resizeStopCanvas();
+    if (typeof resizeStopCanvas === "function") {
+      resizeStopCanvas();
+    }
   } else if (screenId === "screen-road") {
     state.mode = "road";
+    if (typeof enterRoadScene === "function") {
+      enterRoadScene();
+    }
+    if (typeof resizeRoadCanvas === "function") {
+      resizeRoadCanvas();
+    }
+    if (typeof renderRoadScene === "function") {
+      renderRoadScene();
+    }
   } else if (screenId === "screen-end") {
     state.mode = "end";
   } else if (screenId === "screen-menu") {
@@ -223,4 +236,3 @@ function endSuccess() {
     "Несмотря на рискованных попутчиков и нехватку ресурсов, вы добрались до конца маршрута.";
   setScreen("screen-end");
 }
-
