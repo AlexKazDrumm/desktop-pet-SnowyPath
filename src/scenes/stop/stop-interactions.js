@@ -78,6 +78,76 @@ function isValidStandPoint(hubCfg, cityLayout, x, y, car, props) {
   return true;
 }
 
+function addInventoryItemById(itemId, count) {
+  if (!itemId) return false;
+
+  const safeCount = Math.max(1, Number.isFinite(count) ? count : 1);
+
+  state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const existing = state.inventory.find((x) => x && x.id === itemId);
+
+  if (existing) {
+    // если стакуемый — увеличим count (если count вообще есть)
+    if (typeof existing.count === "number") {
+      existing.count = Math.max(1, existing.count + safeCount);
+    }
+    return true;
+  }
+
+  // пробуем нормальный путь через createInventoryItem
+  if (typeof window.createInventoryItem === "function") {
+    const inst = window.createInventoryItem(itemId, safeCount);
+    if (inst) {
+      state.inventory.push(inst);
+      return true;
+    }
+  }
+
+  // fallback (если вдруг items не подключены)
+  state.inventory.push({
+    id: itemId,
+    name: itemId,
+    iconKey: `item_${itemId}`,
+    description: "",
+    count: safeCount,
+    tags: []
+  });
+  return true;
+}
+
+function openTrashFoundDialog() {
+  const foundId = "rotten_sandwich";
+  const title = "Испорченный сэндвич";
+  const text = "В мусорке лежит испорченный сэндвич. Взять его с собой?";
+
+  openStopDialogVN([text], [
+    {
+      id: "take",
+      label: "Взять",
+      onPick: () => {
+        if (!stopLocalFlags.trashSandwichTaken) {
+          addInventoryItemById(foundId, 1);
+          stopLocalFlags.trashSandwichTaken = true;
+        }
+        closeStopDialog();
+      }
+    },
+    {
+      id: "leave",
+      label: "Оставить",
+      onPick: () => {
+        closeStopDialog();
+      }
+    }
+  ], { lockMovement: true });
+}
+
+function openTrashEmptyDialog() {
+  openStopDialogVN(["Ты уже шарил тут. Ничего полезного больше нет."], [
+    { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
+  ], { lockMovement: true });
+}
+
 function handleHubInteract() {
   if (!stopCanvas) return;
 
@@ -188,25 +258,12 @@ function handleHubInteract() {
     const nearProp = props.find((p) => isNearProp(p));
     if (nearProp) {
       if (nearProp.id === "trash_near_cafe" || nearProp.kind === "trash") {
+        // ВАЖНО: предмет НЕ добавляем до согласия
         if (!stopLocalFlags.trashSearchedOnce) {
           stopLocalFlags.trashSearchedOnce = true;
-
-          const found = {
-            id: "rotten_sandwich",
-            name: "Испорченный сэндвич",
-            iconKey: "item_rotten_sandwich",
-            description: "Пахнет ужасно. Но это еда… наверное."
-          };
-
-          state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
-          const exists = state.inventory.some((x) => x && x.id === found.id);
-          if (!exists) state.inventory.push(found);
-
-          showStopToast("Найден предмет: Испорченный сэндвич", "good");
-          openTrashDialogFirst();
+          openTrashFoundDialog();
         } else {
-          showStopToast("Ничего полезного.", "info");
-          openTrashDialogAgain();
+          openTrashEmptyDialog();
         }
         return;
       }
@@ -216,12 +273,10 @@ function handleHubInteract() {
 
         if (isHub0 && !stopLocalFlags.hub0NpcIntroDialogShown) {
           stopLocalFlags.hub0NpcIntroDialogShown = true;
-          showStopToast("Разговор", "info");
           openHub0NpcIntroDialog();
           return;
         }
 
-        showStopToast("Разговор", "info");
         openNpcGenericDialog();
         return;
       }
@@ -243,33 +298,26 @@ function handleHubInteract() {
     const amount = 10;
     const cost = amount * 1;
     if (state.money < cost) {
-      showStopToast("Не хватает денег.", "bad");
       alert("Недостаточно денег для покупки топлива.");
       return;
     }
     adjustResources({ fuel: amount, money: -cost });
-    showStopToast("+10 топлива", "good");
-    renderStats();
     return;
   }
 
   if (nearPoi.type === "food") {
     const cost = 10;
     if (state.money < cost) {
-      showStopToast("Не хватает денег.", "bad");
       alert("Недостаточно денег для еды.");
       return;
     }
     adjustResources({ money: -cost, hunger: 40 });
-    showStopToast("+40 сытости", "good");
-    renderStats();
     return;
   }
 
   if (nearPoi.type === "hotel") {
     const cost = 25;
     if (state.money < cost) {
-      showStopToast("Не хватает денег.", "bad");
       alert("Недостаточно денег на гостиницу.");
       return;
     }
@@ -277,18 +325,12 @@ function handleHubInteract() {
     state.fatigue = 100;
     state.hunger = clamp(state.hunger - 10, 0, 100);
     if (checkFailConditions()) return;
-    showStopToast("Бодрость восстановлена", "good");
-    renderStats();
     return;
   }
 
   if (nearPoi.type === "work") {
     adjustResources({ money: 30, hunger: -10, fatigue: -10 });
     if (checkFailConditions()) return;
-    showStopToast("+30₽", "good");
-    renderStats();
     return;
   }
-
-  showStopToast("Ничего интересного.", "info");
 }

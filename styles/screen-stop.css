@@ -1,5 +1,18 @@
 /* -------- Полноэкранный экран остановки -------- */
+#stopCanvas {
+  width: auto;
+  height: auto;
+  display: block;
 
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Если у тебя аватарки тоже мылит */
+.hud-avatar, .character-avatar img {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
 .screen-stop {
   max-width: none;
   width: 100%;

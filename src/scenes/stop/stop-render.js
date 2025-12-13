@@ -7,7 +7,7 @@
  * - низ 16x2: HUD (меню)
  */
 
-const HUB_DEBUG_DRAW_GRID = false; // сетку города не рисуем (как ты и требовал)
+const HUB_DEBUG_DRAW_GRID = false; // сетку города не рисуем
 const HUB_DEBUG_DRAW_HUD_GRID = false;
 
 const STOP_HUD_HIT_REGIONS = []; // пересчитывается каждый кадр
@@ -26,7 +26,6 @@ function getHudImageBySrc(src) {
 
 function getSelectedCarAvatarSrc() {
   const id = String(state.characterId || "tourist");
-  // твои реальные файлы: assets/avatars/cars/car_worker.png и т.п.
   return `assets/avatars/cars/car_${id}.png`;
 }
 
@@ -54,10 +53,6 @@ function drawRotatedTile(ctx, img, x, y, s, rot) {
 
 function drawRotatedSprite(ctx, img, x, y, w, h, angle) {
   if (!img || !img.complete || img.naturalWidth <= 0) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(250,204,21,0.6)";
-    ctx.strokeRect(x, y, w, h);
-    ctx.restore();
     return;
   }
   if (!angle) {
@@ -71,28 +66,16 @@ function drawRotatedSprite(ctx, img, x, y, w, h, angle) {
   ctx.restore();
 }
 
-/**
- * Получить текущий конфиг хаба
- * @returns {ReturnType<typeof getHubGridConfig>}
- */
 function getCurrentHubGridConfig() {
   return getHubGridConfig(state.currentPointIndex || 0);
 }
 
-/**
- * Подготовка src аватарки интеракт-объекта с поддержкой themed-override.
- * @param {string|null} avatarKey
- * @param {"npc"|"building"|"prop"|"trash"|"car"} kind
- * @param {string} themeKey
- * @returns {{src:string, kind:"npc"|"building"|"prop"|"trash"|"car"}}
- */
 function makeInteractAvatarPayload(avatarKey, kind, themeKey) {
   const key = String(avatarKey || "");
   const tk = String(themeKey || "");
   let src = "";
 
   if (key) {
-    // themed first
     if (tk) {
       if (key.startsWith("avatar_")) {
         src = `assets/avatars/${tk}_${key}.png`;
@@ -102,7 +85,6 @@ function makeInteractAvatarPayload(avatarKey, kind, themeKey) {
       }
     }
 
-    // base fallback
     if (!src) {
       if (key.startsWith("avatar_")) {
         src = `assets/avatars/${key}.png`;
@@ -115,7 +97,6 @@ function makeInteractAvatarPayload(avatarKey, kind, themeKey) {
   return { src, kind };
 }
 
-/** draw text inside rect with clipping + basic wrap */
 function drawTextInRect(ctx, text, r, opts) {
   const t = String(text || "");
   if (!t) return;
@@ -141,7 +122,6 @@ function drawTextInRect(ctx, text, r, opts) {
   const x = align === "center" ? (r.x + r.w / 2) : (r.x + padding);
   let y = r.y + padding;
 
-  // простейший wrap по словам
   const words = t.replace(/\r/g, "").split(/\s+/).filter(Boolean);
   const lines = [];
   let cur = "";
@@ -191,7 +171,6 @@ function drawAvatarInRect(ctx, img, r) {
   }
 }
 
-/** кнопка в rect */
 function drawButton(ctx, r, label, pressed) {
   ctx.save();
   ctx.fillStyle = pressed ? "rgba(148,163,184,0.25)" : "rgba(11,18,32,0.75)";
@@ -209,7 +188,6 @@ function drawButton(ctx, r, label, pressed) {
   ctx.restore();
 }
 
-/** регистрируем кликабельную область */
 function addHudHitRegion(kind, rect, payload) {
   STOP_HUD_HIT_REGIONS.push({
     kind,
@@ -227,9 +205,11 @@ function renderStopHub(dt) {
   if (!stopUiInited) {
     initStopSceneUI();
     stopUiInited = true;
-
     if (typeof resizeStopCanvas === "function") resizeStopCanvas();
   }
+
+  // синхронизация статов (чтобы не “пропадали”)
+  if (typeof syncStopStatsIfNeeded === "function") syncStopStatsIfNeeded();
 
   if (stopToastTimer > 0) {
     stopToastTimer -= dt;
@@ -280,18 +260,6 @@ function renderStopHub(dt) {
     stopLocalFlags.hub0ExitHintShown = false;
   }
 
-  const isHub0 = (hubCfg.pointIndex === 0);
-
-  if (isHub0 && !stopLocalFlags.introShownAtHub0 && state.hub.inCar) {
-    stopLocalFlags.introShownAtHub0 = true;
-    showStopToast("Нажми E у машины, чтобы выйти. Рядом местный — он объяснит правила.", "info");
-  }
-
-  if (isHub0 && !stopLocalFlags.hub0ExitHintShown && !state.hub.inCar) {
-    stopLocalFlags.hub0ExitHintShown = true;
-    showStopToast("Подойди к местному у заправки и нажми E, чтобы поговорить.", "info");
-  }
-
   const movementLocked = stopDialogState.open && stopDialogState.lockMovement;
 
   const speed = state.hub.speed;
@@ -321,7 +289,6 @@ function renderStopHub(dt) {
     state.hub.angle = snapAngleTo8Directions(Math.atan2(vy, vx));
   }
 
-  // clamp игрока ТОЛЬКО в мире 16x6
   const margin = Math.max(6, Math.floor(cityLayout.cellSize * 0.20));
   const minX = cityLayout.offsetX + margin;
   const maxX = cityLayout.offsetX + cityLayout.gridW - margin;
@@ -409,12 +376,10 @@ function renderStopHub(dt) {
   let currentAvatar = null;
 
   // ===== buildings =====
-    buildings.forEach((poi) => {
+  buildings.forEach((poi) => {
     const isInsideBand = isNearPOI(poi);
-
     const sprite = poi.spriteKey ? sprites[poi.spriteKey] : null;
 
-    // 1) рисуем само здание
     if (sprite && sprite.complete && sprite.naturalWidth > 0) {
       ctx.drawImage(sprite, poi.x, poi.y, poi.w, poi.h);
     } else {
@@ -422,17 +387,14 @@ function renderStopHub(dt) {
       ctx.fillRect(poi.x, poi.y, poi.w, poi.h);
     }
 
-    // 2) пунктирная зона интеракта (чтобы было видно, куда подходить)
     if (poi && poi.interactW > 0 && poi.interactH > 0) {
       ctx.save();
 
-      // заливка только при "внутри"
       if (isInsideBand && !state.hub.inCar) {
         ctx.fillStyle = "rgba(34, 197, 94, 0.16)";
         ctx.fillRect(poi.interactX, poi.interactY, poi.interactW, poi.interactH);
       }
 
-      // тонкий зелёный пунктир
       ctx.strokeStyle = "rgba(34, 197, 94, 0.70)";
       ctx.lineWidth = 1;
 
@@ -450,7 +412,6 @@ function renderStopHub(dt) {
       ctx.restore();
     }
 
-    // 3) HUD при подходе
     if (isInsideBand && !state.hub.inCar) {
       currentHint = poi.hint || "";
       currentTitle = poi.label || "";
@@ -486,8 +447,6 @@ function renderStopHub(dt) {
     if (isNearCar(car)) {
       currentTitle = "Машина";
       currentHint = state.hub.inCar ? "E — выйти из машины" : "E — сесть в машину";
-
-      // реальный ассет из assets/avatars/cars/*
       currentAvatar = { kind: "car", src: getSelectedCarAvatarSrc() };
     }
   }
@@ -528,44 +487,14 @@ function renderStopHub(dt) {
   const hudRect = getHudRect(stage);
   drawPanel(ctx, hudRect);
 
-  // debug grid HUD
-  if (HUB_DEBUG_DRAW_HUD_GRID) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(148,163,184,0.35)";
-    ctx.lineWidth = 1;
-    // rows 2
-    for (let r = 0; r <= stage.uiRows; r++) {
-      const yy = stage.hudY0 + r * stage.cellSize;
-      ctx.beginPath();
-      ctx.moveTo(stage.offsetX, yy);
-      ctx.lineTo(stage.offsetX + stage.gridW, yy);
-      ctx.stroke();
-    }
-    for (let c = 0; c <= stage.cols; c++) {
-      const xx = stage.offsetX + c * stage.cellSize;
-      ctx.beginPath();
-      ctx.moveTo(xx, stage.hudY0);
-      ctx.lineTo(xx, stage.hudY0 + stage.hudH);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  // ===== layout по твоим координатам =====
-  // 1:1-2:2 interact avatar
+  // layout
   const rInteractAvatar = hudCellsToRect(stage, 1, 2, 1, 2);
-  // 1:3-2:4 interact text
   const rInteractText = hudCellsToRect(stage, 3, 4, 1, 2);
-  // 1:5-1:12 dialog area (row1)
   const rDialog = hudCellsToRect(stage, 5, 12, 1, 1);
-  // 2:5-2:12 inventory+controls (row2)
   const rBottomCenter = hudCellsToRect(stage, 5, 12, 2, 2);
-  // 1:13-2:14 stats
   const rStats = hudCellsToRect(stage, 13, 14, 1, 2);
-  // 1:15-2:16 player avatar
   const rPlayerAvatar = hudCellsToRect(stage, 15, 16, 1, 2);
 
-  // avatars
   const ia = (stopHudState && stopHudState.interactAvatar) ? stopHudState.interactAvatar : null;
   const iaImg = ia ? getHudImageBySrc(ia.src) : null;
   drawAvatarInRect(ctx, iaImg, rInteractAvatar);
@@ -574,7 +503,6 @@ function renderStopHub(dt) {
   const paImg = paSrc ? getHudImageBySrc(paSrc) : null;
   drawAvatarInRect(ctx, paImg, rPlayerAvatar);
 
-  // interact text (title + hint)
   drawPanel(ctx, rInteractText);
 
   const titleRect = {
@@ -613,11 +541,10 @@ function renderStopHub(dt) {
     padding: 10
   });
 
-  // ===== dialog row1 col5-12 (centered) =====
+  // dialog
   drawPanel(ctx, rDialog);
 
   if (stopDialogState.open) {
-    // текст по центру зоны
     const dlgInner = {
       x: rDialog.x + 10,
       y: rDialog.y + 10,
@@ -625,7 +552,6 @@ function renderStopHub(dt) {
       h: rDialog.h - 20
     };
 
-    // если есть choices на последней строке — рисуем кнопки внизу области
     const isLastLine = stopDialogState.lineIndex >= (stopDialogState.lines.length - 1);
     const hasChoices = isLastLine && stopDialogState.choices && stopDialogState.choices.length;
 
@@ -657,7 +583,6 @@ function renderStopHub(dt) {
     });
 
     if (!hasChoices) {
-      // если есть "дальше" — рисуем одну кнопку "Далее" справа снизу
       const hasMore = stopDialogState.lineIndex < stopDialogState.lines.length - 1;
       if (hasMore) {
         const btnR = {
@@ -670,7 +595,7 @@ function renderStopHub(dt) {
         addHudHitRegion("dialog_next", btnR, null);
       }
     } else if (buttonsBox) {
-      const choices = stopDialogState.choices.slice(0, 4); // чтобы не устраивать ад
+      const choices = stopDialogState.choices.slice(0, 4);
       const gap = 8;
       const btnW = Math.floor((buttonsBox.w - gap * (choices.length - 1)) / choices.length);
       const btnH = buttonsBox.h;
@@ -687,16 +612,12 @@ function renderStopHub(dt) {
         addHudHitRegion("dialog_choice", br, { index: i });
       }
     }
-  } else {
-    // пустой диалог — просто тонкий "молчаливый" фон, без текста
   }
 
-    // ===== bottom center row2 col5-12: inventory ALWAYS visible + hover description instead of controls =====
+  // ===== bottom center row2 col5-12: inventory + controls text =====
   drawPanel(ctx, rBottomCenter);
 
   const pad = 8;
-
-  // нижняя строка под текст (controls / hover description)
   const textH = Math.max(18, Math.floor(stage.cellSize * 0.34));
 
   const rInv = {
@@ -713,7 +634,6 @@ function renderStopHub(dt) {
     h: textH
   };
 
-  // background inventory zone
   if (rInv.h >= 10) {
     ctx.save();
     ctx.fillStyle = "rgba(11, 18, 32, 0.70)";
@@ -731,7 +651,6 @@ function renderStopHub(dt) {
         maxLines: 1
       });
     } else {
-      // слоты по горизонтали
       const slotGap = Math.max(6, Math.floor(stage.cellSize * 0.12));
       const slotSize = Math.max(28, Math.floor(Math.min(rInv.h, stage.cellSize * 0.78)));
 
@@ -742,11 +661,16 @@ function renderStopHub(dt) {
       const startX = rInv.x + Math.max(8, Math.floor((rInv.w - totalW) / 2));
       const y0 = rInv.y + Math.max(6, Math.floor((rInv.h - slotSize) / 2));
 
+      // ВАЖНО: клипуем область инвентаря, чтобы бордеры/иконки не выходили за рамки rInv
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(rInv.x + 1, rInv.y + 1, rInv.w - 2, rInv.h - 2);
+      ctx.clip();
+
       for (let i = 0; i < show.length; i++) {
         const it = show[i];
         const sr = { x: startX + i * (slotSize + slotGap), y: y0, w: slotSize, h: slotSize };
 
-        // slot box
         ctx.save();
         ctx.fillStyle = "rgba(2, 6, 23, 0.35)";
         ctx.fillRect(sr.x, sr.y, sr.w, sr.h);
@@ -754,7 +678,6 @@ function renderStopHub(dt) {
         ctx.strokeRect(sr.x + 0.5, sr.y + 0.5, sr.w - 1, sr.h - 1);
         ctx.restore();
 
-        // icon
         const iconSrc = it && it.iconKey ? getInventoryIconSrc(it.iconKey) : "";
         const iconImg = iconSrc ? getHudImageBySrc(iconSrc) : null;
 
@@ -763,11 +686,10 @@ function renderStopHub(dt) {
           ctx.drawImage(iconImg, sr.x + inset, sr.y + inset, sr.w - inset * 2, sr.h - inset * 2);
         }
 
-        // hover region for description
-        addHudHitRegion("inv_item", sr, {
-          item: it || null
-        });
+        addHudHitRegion("inv_item", sr, { item: it || null });
       }
+
+      ctx.restore();
 
       if (inv.length > show.length) {
         ctx.save();
@@ -781,7 +703,6 @@ function renderStopHub(dt) {
     }
   }
 
-  // текст внизу: по умолчанию controls, при hover будет меняться (см. scene-stop.js)
   drawTextInRect(ctx, stopHudState.controlsText, rText, {
     fontSize: Math.max(10, Math.floor(stage.cellSize * 0.16)),
     color: "#9ca3af",
@@ -790,34 +711,7 @@ function renderStopHub(dt) {
     padding: 4
   });
 
-  // ===== toast поверх =====
-  if (stopHudState.toastText && stopToastTimer > 0) {
-    const tr = {
-      x: stage.offsetX + Math.floor(stage.gridW * 0.20),
-      y: stage.offsetY + Math.max(8, Math.floor(stage.cellSize * 0.15)),
-      w: Math.floor(stage.gridW * 0.60),
-      h: Math.max(26, Math.floor(stage.cellSize * 0.6))
-    };
-
-    ctx.save();
-    let border = "rgba(148, 163, 184, 0.9)";
-    if (stopHudState.toastKind === "good") border = "rgba(34,197,94,0.8)";
-    if (stopHudState.toastKind === "bad") border = "rgba(248,113,113,0.8)";
-
-    ctx.fillStyle = "rgba(11, 18, 32, 0.95)";
-    ctx.fillRect(tr.x, tr.y, tr.w, tr.h);
-    ctx.strokeStyle = border;
-    ctx.strokeRect(tr.x + 0.5, tr.y + 0.5, tr.w - 1, tr.h - 1);
-
-    drawTextInRect(ctx, stopHudState.toastText, tr, {
-      fontSize: Math.max(11, Math.floor(stage.cellSize * 0.20)),
-      color: "#e5e7eb",
-      align: "center",
-      maxLines: 1,
-      padding: 6
-    });
-    ctx.restore();
-  }
+  // ===== toast отключили полностью =====
 }
 
 /**

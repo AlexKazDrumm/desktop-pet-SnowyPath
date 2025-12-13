@@ -22,15 +22,9 @@ function handleStopCanvasClick(clientX, clientY) {
   const regions = typeof getStopHudHitRegions === "function" ? getStopHudHitRegions() : [];
   if (!regions || !regions.length) return;
 
-  // клики по HUD должны ловиться только в его зоне — но мы и так проверяем регионы
   for (let i = regions.length - 1; i >= 0; i--) {
     const r = regions[i];
     if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
-      if (r.kind === "inventory_toggle") {
-        toggleInventoryUI();
-        return;
-      }
-
       if (r.kind === "dialog_next") {
         advanceStopDialog();
         return;
@@ -68,20 +62,34 @@ function pickHudRegionAt(px, py) {
   return null;
 }
 
+function _getHoverTextForItem(it) {
+  if (!it) return "";
+
+  const desc = String(it.description || "").trim();
+  if (desc) return desc;
+
+  const name = String(it.name || "").trim();
+  const id = String(it.id || "").trim();
+
+  // если name совпадает с id — НЕ показываем, чтобы не светить “id”
+  if (name && name !== id) return name;
+
+  return "Без описания";
+}
+
 function handleStopHudHover(px, py) {
   const r = pickHudRegionAt(px, py);
 
   if (r && r.kind === "inv_item" && r.payload && r.payload.item) {
     const it = r.payload.item;
-    const desc = String(it.description || it.name || "");
-    if (typeof setStopControlsText === "function") setStopControlsText(desc);
+    const text = _getHoverTextForItem(it);
+    if (typeof setStopControlsText === "function") setStopControlsText(text);
     return;
   }
 
   if (typeof resetStopControlsText === "function") resetStopControlsText();
 }
 
-// ===== helpers: hover only when cursor is over canvas =====
 function isPointInsideCanvas(clientX, clientY) {
   if (!stopCanvas) return false;
   const rect = stopCanvas.getBoundingClientRect();
@@ -128,13 +136,11 @@ function ensureStopSceneBound() {
     }
   });
 
-  // клики по canvas (HUD кнопки)
   window.addEventListener("mousedown", (e) => {
     if (state.mode !== "stop") return;
     handleStopCanvasClick(e.clientX, e.clientY);
   });
 
-  // hover по HUD (описание предмета под курсором) — только когда мышь над canvas
   window.addEventListener("mousemove", (e) => {
     if (state.mode !== "stop") return;
 
@@ -147,7 +153,6 @@ function ensureStopSceneBound() {
     handleStopHudHover(p.px, p.py);
   });
 
-  // сброс hover, когда уходим с окна (аналог mouseleave)
   window.addEventListener("blur", () => {
     if (typeof resetStopControlsText === "function") resetStopControlsText();
   });
