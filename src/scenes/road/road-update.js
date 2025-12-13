@@ -121,9 +121,19 @@ function updateRoad(dt) {
     // trigger when the camera/car is near the entity's world-row and within X proximity
     const zoneX = (typeof ent.xZone === 'number') ? ent.xZone : ROAD_INTERACT_X;
     const rowDist = Math.abs((ent.row || 0) - carWorldFloat);
-    // require a *real* overlap: tighter thresholds so interaction happens
-    // only when the car sprite is actually at the interaction column
-    if (rowDist < 0.5 && Math.abs((state.road.carX || 0) - zoneX) < 0.5) {
+    // require a *real* overlap: compute fractional overlap between
+    // car cell [carX, carX+1) and the interact zone which sits in the
+    // right portion of the `zoneX` cell. We approximate the zone as
+    // occupying the right ~28% of the cell (matches render logic).
+    const zoneFrac = 0.28;
+    const zoneStart = zoneX + (1 - zoneFrac);
+    const zoneEnd = zoneX + 1;
+    const carLeft = (state.road.carX || 0);
+    const carRight = carLeft + 1;
+
+    const overlapsX = (carRight > zoneStart) && (carLeft < zoneEnd);
+
+    if (rowDist < 0.5 && overlapsX) {
       if (ent.kind === "hitchhiker") {
         // keep drawing the hitchhiker until player chooses; mark pending
         ent._pending = true;
