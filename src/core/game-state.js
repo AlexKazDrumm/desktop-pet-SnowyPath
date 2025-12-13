@@ -116,6 +116,19 @@ function adjustResources({ fuel = 0, money = 0, hunger = 0, fatigue = 0 }) {
   if (typeof renderStats === "function") {
     renderStats();
   }
+
+  // trigger temporary stat flash in HUD (if available)
+  try {
+    const dur = 1.0; // seconds
+    if (typeof stopHudState === "object" && stopHudState && stopHudState._statFlash) {
+      if (money !== 0) stopHudState._statFlash.money = { timer: dur, dir: Math.sign(money) || 1 };
+      if (fuel !== 0) stopHudState._statFlash.fuel = { timer: dur, dir: Math.sign(fuel) || 1 };
+      if (hunger !== 0) stopHudState._statFlash.hunger = { timer: dur, dir: Math.sign(hunger) || 1 };
+      if (fatigue !== 0) stopHudState._statFlash.fatigue = { timer: dur, dir: Math.sign(fatigue) || 1 };
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 /**

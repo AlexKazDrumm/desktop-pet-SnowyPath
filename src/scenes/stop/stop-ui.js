@@ -44,6 +44,14 @@ const stopHudState = {
 
   // для авто-обновления статов
   _lastStats: { money: null, fuel: null, hunger: null, fatigue: null }
+  ,
+  // flash state per stat: { timer:number, dir:number } dir: +1 increase, -1 decrease
+  _statFlash: {
+    money: { timer: 0, dir: 0 },
+    fuel: { timer: 0, dir: 0 },
+    hunger: { timer: 0, dir: 0 },
+    fatigue: { timer: 0, dir: 0 }
+  }
 };
 
 /** ===== helpers ===== */

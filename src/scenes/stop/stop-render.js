@@ -615,13 +615,58 @@ function renderStopHub(dt) {
 
   // ===== stats =====
   drawPanel(ctx, rStats);
-  drawTextInRect(ctx, stopHudState.statsText, rStats, {
-    fontSize: Math.max(9, Math.floor(stage.cellSize * 0.16)),
-    color: "#e5e7eb",
-    maxLines: 6,
-    lineHeight: Math.max(11, Math.floor(stage.cellSize * 0.20)),
-    padding: 4 // было 10 — на маленьких cellSize реально убивало текст
-  });
+  // Custom per-line rendering to support temporary color flash on stat change
+  const statsText = String(stopHudState.statsText || "");
+  const statLines = statsText.replace(/\r/g, "").split("\n");
+  const fontSize = Math.max(9, Math.floor(stage.cellSize * 0.16));
+  const lineHeight = Math.max(11, Math.floor(stage.cellSize * 0.20));
+  const padding = 4;
+
+  // decrement flash timers (if any)
+  try {
+    if (stopHudState && stopHudState._statFlash) {
+      const sf = stopHudState._statFlash;
+      for (const k of ["money", "fuel", "hunger", "fatigue"]) {
+        if (sf[k] && typeof sf[k].timer === "number" && sf[k].timer > 0) {
+          sf[k].timer = Math.max(0, sf[k].timer - dt);
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(rStats.x, rStats.y, rStats.w, rStats.h);
+  ctx.clip();
+
+  ctx.font = `${fontSize}px monospace`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  const x = rStats.x + padding;
+  let y = rStats.y + padding;
+
+  for (let i = 0; i < statLines.length; i++) {
+    const line = statLines[i] || "";
+    let color = "#e5e7eb";
+    try {
+      if (stopHudState && stopHudState._statFlash) {
+        const keyMap = ["money", "fuel", "hunger", "fatigue"];
+        const key = keyMap[i];
+        if (key && stopHudState._statFlash[key] && stopHudState._statFlash[key].timer > 0) {
+          const dir = stopHudState._statFlash[key].dir || 0;
+          color = dir > 0 ? "#22c55e" : (dir < 0 ? "#ef4444" : "#e5e7eb");
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    ctx.fillStyle = color;
+    ctx.fillText(line, x, y);
+    y += lineHeight;
+    if (y > rStats.y + rStats.h) break;
+  }
+
+  ctx.restore();
 
   // ===== dialog =====
   drawPanel(ctx, rDialog);

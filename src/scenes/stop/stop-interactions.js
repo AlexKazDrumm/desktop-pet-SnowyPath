@@ -115,6 +115,26 @@ function addInventoryItemById(itemId, count) {
   return true;
 }
 
+function removeInventoryItemById(itemId, count) {
+  if (!itemId) return false;
+  const safeCount = Math.max(1, Number.isFinite(count) ? count : 1);
+
+  state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
+  const idx = state.inventory.findIndex((x) => x && x.id === itemId);
+  if (idx === -1) return false;
+
+  const existing = state.inventory[idx];
+  if (typeof existing.count === "number" && existing.count > 1) {
+    existing.count = Math.max(0, existing.count - safeCount);
+    if (existing.count <= 0) state.inventory.splice(idx, 1);
+    return true;
+  }
+
+  // not stackable or single — remove the entry
+  state.inventory.splice(idx, 1);
+  return true;
+}
+
 function openTrashFoundDialog() {
   const foundId = "rotten_sandwich";
   const title = "Испорченный сэндвич";

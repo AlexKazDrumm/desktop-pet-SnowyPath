@@ -43,6 +43,38 @@ function handleStopCanvasClick(clientX, clientY) {
         return;
       }
 
+      if (r.kind === "inv_item") {
+        const it = r.payload && r.payload.item ? r.payload.item : null;
+        if (!it) return;
+
+        // Currently only sandwich has eat behavior
+        if (it.id === "rotten_sandwich") {
+          openStopDialogVN(["Что сделать с сэндвичем?"], [
+            {
+              id: "eat",
+              label: "Съесть",
+              onPick: () => {
+                try {
+                  removeInventoryItemById(it.id, 1);
+                } catch (e) { console.error(e); }
+                try { adjustResources({ hunger: 5 }); } catch (e) { console.error(e); }
+                closeStopDialog();
+              }
+            },
+            {
+              id: "leave",
+              label: "Не есть",
+              onPick: () => { closeStopDialog(); }
+            }
+          ], { lockMovement: true });
+        } else {
+          openStopDialogVN([_getHoverTextForItem(it) || "Предмет"], [
+            { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
+          ], { lockMovement: true });
+        }
+        return;
+      }
+
       return;
     }
   }
