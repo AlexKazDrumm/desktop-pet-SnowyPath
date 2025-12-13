@@ -58,31 +58,70 @@ function tryStartTravelToSelected() {
     return;
   }
 
-  // разрешаем только следующий шаг (cur+1)
-  if (sel !== cur + 1) {
-    if (sel <= cur) showMapToast("You are already there");
-    else showMapToast("Locked: only next point is available");
+  // allow only forward travel
+  if (sel <= cur) {
+    showMapToast("You are already there");
+    return;
+  }
+
+  const dist = distanceFromToPoints(cur, sel);
+  if (dist > state.fuel) {
+    showMapToast("Недостаточно топлива для выбранной точки.");
     return;
   }
 
   try {
+    // compute hunger/fatigue losses for all segments between cur..sel-1
+    let totalHungerLoss = 0;
+    let totalFatigueLoss = 0;
+    for (let segIdx = cur; segIdx < sel; segIdx++) {
+      const seg = segments[segIdx];
+      if (seg) {
+        totalHungerLoss += (typeof seg.hungerLoss === 'number') ? seg.hungerLoss : 0;
+        totalFatigueLoss += (typeof seg.fatigueLoss === 'number') ? seg.fatigueLoss : 0;
+      }
+    }
+
+    const char = state.characterConfig || (typeof getCharacterById === 'function' ? getCharacterById(state.characterId || selectedCharacterId) : null);
+    const hungerLoss = totalHungerLoss * (char && char.hungerLossMultiplier ? char.hungerLossMultiplier : 1);
+    const fatigueLoss = totalFatigueLoss * (char && char.fatigueLossMultiplier ? char.fatigueLossMultiplier : 1);
+
+    // apply immediate costs
+    adjustResources({ fuel: -dist, hunger: -hungerLoss, fatigue: -fatigueLoss });
+
+    if (state.fuel < 0) state.fuel = 0;
+    if (checkFailConditions && checkFailConditions()) return;
+
+    // init road state
     state.road = state.road || {};
-    state.road.segmentIndex = cur;
+    state.road.active = true;
+    state.road.fromPoint = cur;
+    state.road.toPoint = sel;
+    state.road.distanceTotal = dist;
+    state.road.distanceTravelled = 0;
+    state.road.pausedForEvent = false;
+    state.road.hitchhikerEvents = [];
 
-    // переход на road делаем через твой роутер экранов
-    if (typeof setScreen === "function") {
-      setScreen("screen-road");
-    } else {
-      // fallback на случай если кто-то сломал screens-core
-      state.mode = "road";
+    // collect hitchhiker events between segments
+    for (let segIdx = cur; segIdx < sel; segIdx++) {
+      const seg = segments[segIdx];
+      if (!seg) continue;
+      const segDistance = seg.distance || 0;
+      const segOffset = cumulativeDistances[segIdx] - cumulativeDistances[cur];
+      const segHhs = hitchhikers.filter((h) => h.segmentIndex === segIdx);
+      segHhs.forEach((hh) => {
+        const localPos = segDistance * (0.1 + Math.random() * 0.8);
+        const worldPos = segOffset + localPos;
+        state.road.hitchhikerEvents.push({ position: worldPos, hitchhiker: hh, triggered: false });
+      });
     }
 
-    // если есть инициализация/первый рендер дороги — дернем
-    if (typeof renderRoadScene === "function") {
-      renderRoadScene();
-    } else if (typeof enterRoadScene === "function") {
-      enterRoadScene();
-    }
+    state.currentHitchhiker = null;
+    state.lastMessage = `Вы выехали с точки ${cur + 1} к точке ${sel + 1}.`;
+
+    if (typeof setScreen === "function") setScreen("screen-road"); else state.mode = "road";
+    if (typeof renderRoadScene === "function") renderRoadScene();
+    renderStats && renderStats();
   } catch (e) {
     console.error(e);
   }
