@@ -74,7 +74,7 @@ function setScreen(screenId) {
     // В меню и в хабе верхняя статистика скрыта — она уехала в нижнюю панель
     statsBar.classList.toggle(
       "hidden",
-      screenId === "screen-menu" || screenId === "screen-stop"
+      screenId === "screen-menu" || screenId === "screen-stop" || screenId === "screen-map"
     );
   }
 
