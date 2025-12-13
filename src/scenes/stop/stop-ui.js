@@ -85,6 +85,28 @@ function hideStopToast() {
 
 /* ===== inventory ===== */
 
+/**
+ * Детерминированно получить src для иконки предмета.
+ * - для item_* всегда берём assets/items/{iconKey}.png (НЕ через sprites[...] — у тебя это сейчас даёт одинаковую картинку)
+ * - иначе fallback на sprites[iconKey].src
+ *
+ * @param {string} iconKey
+ * @returns {string}
+ */
+function getInventoryIconSrc(iconKey) {
+  const key = String(iconKey || "");
+  if (!key) return "";
+
+  if (key.startsWith("item_")) {
+    return `assets/items/${key}.png`;
+  }
+
+  const img = (typeof sprites === "object" && sprites && sprites[key]) ? sprites[key] : null;
+  if (img && img.src) return img.src;
+
+  return "";
+}
+
 function toggleInventoryUI(force) {
   if (typeof force === "boolean") stopInventoryOpen = force;
   else stopInventoryOpen = !stopInventoryOpen;
@@ -133,9 +155,10 @@ function renderInventoryUI() {
     icon.width = 24;
     icon.height = 24;
     icon.style.imageRendering = "pixelated";
-    if (it.iconKey && sprites[it.iconKey]) {
-      icon.src = sprites[it.iconKey].src;
-    }
+
+    const src = it.iconKey ? getInventoryIconSrc(it.iconKey) : "";
+    if (src) icon.src = src;
+
     iconWrap.appendChild(icon);
 
     const name = document.createElement("div");

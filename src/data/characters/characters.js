@@ -39,25 +39,59 @@
 
   /**
    * Безопасный билд стартового инвентаря:
-   * если есть createInventoryItem — используем его,
-   * иначе делаем совместимый фоллбек-объект.
+   * 1) если есть createInventoryItem — используем его,
+   * 2) иначе пробуем собрать из getGameItemById / GAME_ITEMS,
+   * 3) иначе делаем фоллбек, но НЕ ставим всем "item_map".
    *
    * @param {string} itemId
    * @param {number} [count=1]
    */
   function buildStartItem(itemId, count = 1) {
+    const safeCount = Math.max(1, Number.isFinite(count) ? count : 1);
+
+    // 1) Нормальный путь: уже загружены items
     if (typeof window.createInventoryItem === "function") {
-      const inst = window.createInventoryItem(itemId, count);
+      const inst = window.createInventoryItem(itemId, safeCount);
       if (inst) return inst;
     }
 
-    // fallback (если items ещё не подгрузились)
+    // 2) Если createInventoryItem ещё нет, но уже есть getGameItemById / GAME_ITEMS
+    // (это тоже "items", просто другой уровень совместимости)
+    let base = null;
+
+    if (typeof window.getGameItemById === "function") {
+      base = window.getGameItemById(itemId);
+    } else if (window.GAME_ITEMS && typeof window.GAME_ITEMS === "object") {
+      base = window.GAME_ITEMS[itemId] || null;
+    }
+
+    if (base && typeof base === "object") {
+      const stackable = !!base.stackable;
+      const maxStack = Number.isFinite(base.maxStack) ? base.maxStack : 1;
+      const finalCount = stackable ? Math.max(1, Math.min(safeCount, maxStack)) : 1;
+
+      return {
+        id: String(base.id || itemId),
+        name: String(base.name || itemId),
+        description: String(base.description || ""),
+        iconKey: String(base.iconKey || `item_${itemId}`),
+        count: finalCount,
+        tags: Array.isArray(base.tags) ? [...base.tags] : []
+      };
+    }
+
+    // 3) Крайний фоллбек: пытаемся вывести иконку из id
+    // Если ассета нет — UI просто покажет пустую/битую картинку,
+    // но мы хотя бы не будем всем ставить карту.
+    const derivedIconKey = itemId ? `item_${itemId}` : "item_map";
+
     return {
       id: itemId,
       name: itemId,
-      iconKey: "item_map",
+      iconKey: derivedIconKey || "item_map",
       description: "",
-      count: Math.max(1, count)
+      count: safeCount,
+      tags: []
     };
   }
 

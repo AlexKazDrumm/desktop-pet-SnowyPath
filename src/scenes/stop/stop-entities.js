@@ -34,7 +34,7 @@ function getSelectedCarSprite() {
     ? String(state.characterId)
     : null;
 
-  // 1) Через конфиг персонажа (самый “правильный” источник ключа)
+  // 1) Через конфиг персонажа
   if (id && typeof getCharacterById === "function") {
     const cfg = getCharacterById(id);
     if (cfg && cfg.carSpriteKey && sprites && sprites[cfg.carSpriteKey]) {
@@ -43,7 +43,7 @@ function getSelectedCarSprite() {
     }
   }
 
-  // 2) Прямой ключ car_${id} (на случай если конфиг/ключи будут без cfg.carSpriteKey)
+  // 2) Прямой ключ car_${id}
   if (id) {
     const directKey = `car_${id}`;
     if (sprites && sprites[directKey]) {
@@ -99,7 +99,7 @@ function computeHubCarFromCell(carCell, layout) {
 
 /**
  * Здания:
- * - спрайт вписываем в bbox здания с padding 10% от клетки
+ * - СПРАЙТ ДОЛЖЕН ТЯНУТЬСЯ в bbox здания с padding 10% от клетки (НЕ сохраняем пропорции)
  * - актив-зона: ПОД зданием (тонкая полоса)
  *
  * @param {ReturnType<typeof computeGridLayout>} layout
@@ -124,11 +124,9 @@ function computeHubBuildingsFromCells(layout, buildings) {
     const innerH = boxH - inset * 2;
 
     const spriteKey = b.spriteKey || null;
-    const sprite = spriteKey ? sprites[spriteKey] : null;
 
-    const fitted = sprite
-      ? fitSpriteInBox(sprite, innerX, innerY, innerW, innerH)
-      : { x: innerX, y: innerY, w: innerW, h: innerH };
+    // ВАЖНО: тянем спрайт в inner-box всегда (даже если он маленький/с другими пропорциями)
+    const stretched = { x: innerX, y: innerY, w: innerW, h: innerH };
 
     const belowRow = y1 + 1;
     const hasBelowCell = belowRow >= 0 && belowRow < layout.rows;
@@ -152,10 +150,10 @@ function computeHubBuildingsFromCells(layout, buildings) {
       label: b.label,
       hint: b.hint,
       spriteKey,
-      x: fitted.x,
-      y: fitted.y,
-      w: fitted.w,
-      h: fitted.h,
+      x: stretched.x,
+      y: stretched.y,
+      w: stretched.w,
+      h: stretched.h,
       cellX0: x0,
       cellY0: y0,
       cellX1: x1,

@@ -59,11 +59,11 @@ window.hubGridConfigs = [
     pointIndex: 0,
     themeKey: "hub0",
     grid: [
-      "...ssss######...",
-      "...sGGs#....#WW.",
+      ".B.ssss######...",
+      ".B.sGGs#....#WW.",
       "...s..s#..F.#WW.",
       ".HHssss#....#...",
-      ".HH....#....#...",
+      ".HH....#.BB.#.B.",
       ".......###C##..."
     ],
     props: [

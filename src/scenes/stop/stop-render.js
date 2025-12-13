@@ -283,13 +283,7 @@ function renderStopHub(dt) {
       ctx.fillRect(poi.x, poi.y, poi.w, poi.h);
     }
 
-    const labelX = poi.bboxX + poi.bboxW / 2;
-    const labelY = poi.bboxY + poi.bboxH + Math.max(6, Math.floor(layout.cellSize * 0.12));
-
-    ctx.font = "13px system-ui";
-    ctx.fillStyle = "#e5e7eb";
-    ctx.textBaseline = "top";
-    ctx.fillText(poi.label, labelX, labelY);
+    // ВАЖНО: подписи зданий на сетке НЕ рисуем (они есть в меню)
 
     if (isInsideBand && !state.hub.inCar) {
       currentHint = poi.hint;
