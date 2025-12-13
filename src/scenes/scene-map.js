@@ -1,33 +1,90 @@
 // scene-map.js
 
+function _getMappedMapPoints(stage, cityLayout) {
+  const pts = Array.isArray(mapPoints) ? mapPoints : [];
+  const out = [];
+  if (!pts.length) return out;
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of pts) {
+    if (typeof p.x === 'number') { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); }
+    if (typeof p.y === 'number') { minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
+  }
+  if (!isFinite(minX) || !isFinite(maxX)) {
+    minX = 0; maxX = 100;
+  }
+  if (!isFinite(minY) || !isFinite(maxY)) {
+    minY = 0; maxY = 100;
+  }
+
+  const cols = cityLayout.cols;
+  const rows = cityLayout.rows;
+
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const nx = (maxX === minX) ? (i / Math.max(1, pts.length - 1)) : ((p.x - minX) / (maxX - minX));
+    const ny = (maxY === minY) ? 0.5 : ((p.y - minY) / (maxY - minY));
+
+    const cx = Math.max(0, Math.min(cols - 1, Math.round(nx * (cols - 1))));
+    const cy = Math.max(0, Math.min(rows - 1, Math.round(ny * (rows - 1))));
+
+    const r = cellToRect(cx, cy, cityLayout);
+    const cxPx = r.x + r.w / 2;
+    const cyPx = r.y + r.h / 2;
+
+    out.push({ index: i, cx, cy, x: cxPx, y: cyPx });
+  }
+  return out;
+}
+
 function renderMap() {
   if (!mapCtx || !mapCanvas) return;
   const ctx = mapCtx;
   const w = mapCanvas.width;
   const h = mapCanvas.height;
 
+  const stage = computeStageLayout(w, h);
+  const cityLayout = deriveCityLayout(stage);
+
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = "#020617";
   ctx.fillRect(0, 0, w, h);
 
-  // Линии между точками
+  // draw subtle grid for city area
+  ctx.save();
+  ctx.fillStyle = "#071026";
+  ctx.fillRect(cityLayout.offsetX, cityLayout.offsetY, cityLayout.gridW, cityLayout.gridH);
+  ctx.strokeStyle = "rgba(74,85,104,0.12)";
+  ctx.lineWidth = 1;
+  for (let cy = 0; cy < cityLayout.rows; cy++) {
+    for (let cx = 0; cx < cityLayout.cols; cx++) {
+      const r = cellToRect(cx, cy, cityLayout);
+      ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    }
+  }
+  ctx.restore();
+
+  // map points mapped to grid
+  const mapped = _getMappedMapPoints(stage, cityLayout);
+
+  // Lines between points
   ctx.strokeStyle = "#4b5563";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  for (let i = 0; i < mapPoints.length - 1; i++) {
-    const a = mapPoints[i];
-    const b = mapPoints[i + 1];
+  for (let i = 0; i < mapped.length - 1; i++) {
+    const a = mapped[i];
+    const b = mapped[i + 1];
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
   }
   ctx.stroke();
 
-  // Нарисовать точки
+  // Draw points
   const current = state.currentPointIndex;
-  const radius = 10;
+  const radius = Math.max(8, Math.floor(cityLayout.cellSize * 0.35));
 
-  for (let i = 0; i < mapPoints.length; i++) {
-    const p = mapPoints[i];
+  for (let i = 0; i < mapped.length; i++) {
+    const p = mapped[i];
 
     let color = "#6b7280";
     let fill = "#020617";
@@ -62,11 +119,44 @@ function renderMap() {
     ctx.strokeStyle = color;
     ctx.stroke();
 
-    ctx.font = "11px system-ui";
+    ctx.font = `${Math.max(10, Math.floor(cityLayout.cellSize * 0.28))}px system-ui`;
     ctx.fillStyle = "#e5e7eb";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillText(String(i + 1), p.x, p.y + radius + 3);
+  }
+
+  // draw HUD area at bottom similar to stop
+  try {
+    const hudRect = getHudRect(stage);
+    drawPanel(ctx, hudRect);
+
+    const rInstructions = hudCellsToRect(stage, 1, 8, 1, 2);
+    const rInfo = hudCellsToRect(stage, 9, 12, 1, 2);
+    const rStats = hudCellsToRect(stage, 13, 16, 1, 2);
+
+    drawPanel(ctx, rInstructions);
+    drawPanel(ctx, rInfo);
+    drawPanel(ctx, rStats);
+
+    drawTextInRect(ctx, "Кликни по синей точке, чтобы выбрать цель. \nНажми 'Поехать', чтобы начать.", rInstructions, { fontSize: Math.max(10, Math.floor(stage.cellSize * 0.18)), color: "#e5e7eb", maxLines: 3, padding: 6 });
+
+    // info: selected distance
+    const selected = state.map.selectedPointIndex;
+    let infoText = `Текущая точка: ${state.currentPointIndex + 1} \nТопливо: ${state.fuel}`;
+    if (selected != null && selected > state.currentPointIndex) {
+      const dist = distanceFromToPoints(state.currentPointIndex, selected);
+      infoText = `Выбрана точка: ${selected + 1} (дистанция ${dist})`;
+    } else {
+      infoText += "\nВыбери достижимую точку";
+    }
+    drawTextInRect(ctx, infoText, rInfo, { fontSize: Math.max(10, Math.floor(stage.cellSize * 0.18)), color: "#e5e7eb", maxLines: 3, padding: 6 });
+
+    // stats on right (reuse stop HUD text if available)
+    const statsText = (typeof buildStopStatsText === 'function') ? buildStopStatsText() : `Money: ${state.money}\nFuel: ${state.fuel}\nHungr: ${state.hunger}\nFatig: ${state.fatigue}`;
+    drawTextInRect(ctx, statsText, rStats, { fontSize: Math.max(9, Math.floor(stage.cellSize * 0.16)), color: "#e5e7eb", maxLines: 6, padding: 6 });
+  } catch (e) {
+    // ignore if helpers not available
   }
 }
 
@@ -112,10 +202,14 @@ function handleMapClick(ev) {
 
   const current = state.currentPointIndex;
   let clickedIndex = -1;
-  const radius = 16;
+  // map click detection using mapped grid positions
+  const stage = computeStageLayout(mapCanvas.width, mapCanvas.height);
+  const cityLayout = deriveCityLayout(stage);
+  const mapped = _getMappedMapPoints(stage, cityLayout);
+  const radius = Math.max(12, Math.floor(cityLayout.cellSize * 0.4));
 
-  for (let i = 0; i < mapPoints.length; i++) {
-    const p = mapPoints[i];
+  for (let i = 0; i < mapped.length; i++) {
+    const p = mapped[i];
     const dx = x - p.x;
     const dy = y - p.y;
     if (dx * dx + dy * dy <= radius * radius) {
