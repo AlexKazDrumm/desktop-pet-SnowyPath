@@ -77,19 +77,7 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
     }
   }
 
-  // NPC
-  const npcCount = Math.max(0, Math.floor(totalRows / 12));
-  for (let i = 0; i < npcCount; i++) {
-    const row = Math.floor((i + 1) * (totalRows / (npcCount + 1)));
-    entities.push({
-      id: `road_npc_${i}`,
-      kind: "npc",
-      row,
-      triggered: false,
-      xNpc: ROAD_NPC_X,
-      xZone: ROAD_INTERACT_X,
-    });
-  }
+
 
   // Manual entities from road templates (if provided) — prefer these over random hitchhiker placement
   let manualEntitiesAdded = false;
@@ -136,6 +124,19 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
 
   // Hitchhikers: if templates didn't supply manual entities, fallback to random placement
   if (!manualEntitiesAdded) {
+    // NPC: approximately one per ~12 rows
+    const npcCount = Math.max(0, Math.floor(totalRows / 12));
+    for (let i = 0; i < npcCount; i++) {
+      const row = Math.floor((i + 1) * (totalRows / (npcCount + 1)));
+      entities.push({
+        id: `road_npc_${i}`,
+        kind: "npc",
+        row,
+        triggered: false,
+        xNpc: ROAD_NPC_X,
+        xZone: ROAD_INTERACT_X,
+      });
+    }
     const hhCount = Math.max(2, Math.floor(totalRows / 10));
     for (let i = 0; i < hhCount; i++) {
       const row = 2 + Math.floor(Math.random() * Math.max(1, totalRows - 4));

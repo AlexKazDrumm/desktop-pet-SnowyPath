@@ -116,18 +116,21 @@ function updateRoad(dt) {
   const entities = Array.isArray(state.road.entities) ? state.road.entities : [];
   const carWorldFloat = state.road.scroll + (viewRows - 1 - carScreenRow);
   for (const ent of entities) {
-    if (!ent || ent.triggered) continue;
+    if (!ent || ent.triggered || ent._pending) continue;
 
     // trigger when the camera/car is near the entity's world-row and within X proximity
     const zoneX = (typeof ent.xZone === 'number') ? ent.xZone : ROAD_INTERACT_X;
     const rowDist = Math.abs((ent.row || 0) - carWorldFloat);
-    if (rowDist < 0.9 && Math.abs((state.road.carX || 0) - zoneX) < 0.6) {
-      ent.triggered = true;
-
+    // require a *real* overlap: tighter thresholds so interaction happens
+    // only when the car sprite is actually at the interaction column
+    if (rowDist < 0.5 && Math.abs((state.road.carX || 0) - zoneX) < 0.5) {
       if (ent.kind === "hitchhiker") {
+        // keep drawing the hitchhiker until player chooses; mark pending
+        ent._pending = true;
+        state.road._activeEntityId = ent.id || null;
         triggerHitchhikerEvent(ent.hitchhiker);
       } else {
-        // npc: don't open a blocking dialog in road view; just mark triggered
+        // npc: mark triggered immediately (non-blocking)
         ent.triggered = true;
       }
 

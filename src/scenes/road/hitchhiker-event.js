@@ -10,6 +10,31 @@ function triggerHitchhikerEvent(h) {
   const minPay = Number(h.minPay || Math.max(0, base - 5));
   const maxPay = Number(h.maxPay || (base + 10));
   // Open dialog showing the *offer* line only — name/description are shown in HUD
+  // helper: show result line and wait for player to press "Далее" before finalizing entity
+  function showResultLine(line) {
+    state.lastMessage = String(line || "");
+    // single-step dialog: show result and a single "Далее" choice which finalizes the entity
+    roadDialogOpen([state.lastMessage], [
+      {
+        id: "advance",
+        label: "Далее",
+        onPick: () => {
+          try {
+            const activeId = state.road && state.road._activeEntityId ? state.road._activeEntityId : null;
+            if (activeId && state.road && Array.isArray(state.road.entities)) {
+              const ent = state.road.entities.find((e) => e && e.id === activeId);
+              if (ent) ent.triggered = true;
+            }
+          } catch (e) { /* ignore */ }
+          if (state.road) state.road._activeEntityId = null;
+          state.currentHitchhiker = null;
+          roadDialogClose();
+          try { renderStats(); } catch (e) { /* ignore */ }
+        }
+      }
+    ]);
+  }
+
   roadDialogOpen(
     [`Он предлагает ${base}₽ (диапазон ${minPay}–${maxPay}).`],
     [
@@ -18,10 +43,7 @@ function triggerHitchhikerEvent(h) {
         label: `Подвезти за ${base}₽`,
         onPick: () => {
           adjustResources({ money: base });
-          state.lastMessage = `Вы подвезли пассажира и получили ${base}₽.`;
-          state.currentHitchhiker = null;
-          roadDialogClose();
-          renderStats();
+          showResultLine(`Вы подвезли пассажира и получили ${base}₽.`);
         },
       },
       {
@@ -32,17 +54,14 @@ function triggerHitchhikerEvent(h) {
           if (rnd < 0.6) {
             const pay = randInt(base, maxPay);
             adjustResources({ money: pay });
-            state.lastMessage = `Торг успешен. Вы получили ${pay}₽.`;
+            showResultLine(`Торг успешен. Вы получили ${pay}₽.`);
           } else if (rnd < 0.8) {
             const pay = minPay;
             adjustResources({ money: pay });
-            state.lastMessage = `Пассажир сбил цену. Вы получили ${pay}₽.`;
+            showResultLine(`Пассажир сбил цену. Вы получили ${pay}₽.`);
           } else {
-            state.lastMessage = "Пассажир обиделся и ушёл.";
+            showResultLine("Пассажир обиделся и ушёл.");
           }
-          state.currentHitchhiker = null;
-          roadDialogClose();
-          renderStats();
         },
       },
       {
@@ -51,20 +70,14 @@ function triggerHitchhikerEvent(h) {
         onPick: () => {
           const pay = randInt(minPay, base);
           adjustResources({ money: pay });
-          state.lastMessage = `Вы дали скидку и получили ${pay}₽.`;
-          state.currentHitchhiker = null;
-          roadDialogClose();
-          renderStats();
+          showResultLine(`Вы дали скидку и получили ${pay}₽.`);
         },
       },
       {
         id: "skip",
         label: "Не останавливаться",
         onPick: () => {
-          state.lastMessage = "Вы проехали мимо.";
-          state.currentHitchhiker = null;
-          roadDialogClose();
-          renderStats();
+          showResultLine("Вы проехали мимо.");
         },
       },
     ]

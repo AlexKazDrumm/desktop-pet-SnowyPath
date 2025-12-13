@@ -113,9 +113,13 @@ const ROAD_SEGMENT_TEMPLATES = [
     grid: SEG0_30,
     // manual entities: hitchhikers/npcs with `row` relative to segment (0..distance-1)
     entities: [
-      { kind: "hitchhiker", row: 4, hitchhikerId: "s1_h3", id: "tmpl_s1_h3", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 18, hitchhikerId: "s1_h1", id: "tmpl_s1_h1", xNpc: 10, xZone: 9 }
-    ]
+      // S1 (segmentIndex: 0) — все 5
+      { kind: "hitchhiker", row: 4,  hitchhikerId: "s1_h3", id: "tmpl_s1_h3", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 9,  hitchhikerId: "s1_h1", id: "tmpl_s1_h1", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 14, hitchhikerId: "s1_h2", id: "tmpl_s1_h2", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 19, hitchhikerId: "s1_h4", id: "tmpl_s1_h4", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 24, hitchhikerId: "s1_h5", id: "tmpl_s1_h5", xNpc: 10, xZone: 9 },
+    ],
   },
   {
     pointIndex: 1,
@@ -123,11 +127,16 @@ const ROAD_SEGMENT_TEMPLATES = [
     distance: 30,
     grid: SEG1_30,
     entities: [
-      { kind: "hitchhiker", row: 10, hitchhikerId: "s2_h1", id: "tmpl_s2_h1", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 22, hitchhikerId: "s2_h4", id: "tmpl_s2_h4", xNpc: 10, xZone: 9 }
-    ]
-  }
+      // S2 (segmentIndex: 1) — все 5
+      { kind: "hitchhiker", row: 3,  hitchhikerId: "s2_h1", id: "tmpl_s2_h1", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 8,  hitchhikerId: "s2_h2", id: "tmpl_s2_h2", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 13, hitchhikerId: "s2_h3", id: "tmpl_s2_h3", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 18, hitchhikerId: "s2_h4", id: "tmpl_s2_h4", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 23, hitchhikerId: "s2_h5", id: "tmpl_s2_h5", xNpc: 10, xZone: 9 },
+    ],
+  },
 ];
+
 
 function getRoadSegmentTemplateByIndex(segIndex) {
   const i = Math.max(0, Math.min(segIndex, ROAD_SEGMENT_TEMPLATES.length - 1));
