@@ -3,9 +3,14 @@
 /**
  * UI: title/hint, toast, inventory, init UI.
  * Состояние (stopInventoryOpen/stopUiInited/stopToastTimer/stopDialogState) — глобально, как и было.
+ *
+ * ВАЖНО:
+ * - нижняя панель теперь GRID фиксированной высоты
+ * - диалоговая зона (верхняя строка) фиксирована по высоте
+ * - инвентарь и управление (нижняя строка): инвентарь прибит к верху, управление к низу
+ * - инвентарь открывается/закрывается без изменения высоты HUD (без скачков)
+ * - если рядом ничего нет — не показываем “битую” картинку
  */
-
-const STOP_BOTTOM_BAR_MIN_HEIGHT = 172;
 
 let stopInventoryOpen = false;
 let stopUiInited = false;
@@ -44,6 +49,61 @@ function setStopHint(text) {
   if (!el) return;
   el.textContent = text || "";
 }
+
+/**
+ * Детерминированный src для аватарок.
+ * Правило:
+ * - если avatarKey начинается с "avatar_" => assets/avatars/{avatarKey}.png
+ * - иначе пробуем sprites[avatarKey].src
+ *
+ * @param {string|null} avatarKey
+ * @returns {string}
+ */
+function getAvatarSrcByKey(avatarKey) {
+  const key = String(avatarKey || "");
+  if (!key) return "";
+
+  if (key.startsWith("avatar_")) {
+    return `assets/avatars/${key}.png`;
+  }
+
+  const img = (typeof sprites === "object" && sprites && sprites[key]) ? sprites[key] : null;
+  if (img && img.src) return img.src;
+
+  return "";
+}
+
+/**
+ * Дефолтные аватарки по типу объекта (на случай, если ассет не подгрузился).
+ *
+ * @param {"npc"|"building"|"prop"|"trash"|"car"|"player"} kind
+ * @returns {string}
+ */
+function getDefaultAvatarSrc(kind) {
+  if (kind === "npc") return "assets/avatars/default_npc.png";
+  if (kind === "building") return "assets/avatars/default_building.png";
+  if (kind === "trash") return "assets/avatars/default_trash.png";
+  if (kind === "car") return "assets/avatars/default_car.png";
+  if (kind === "player") return "assets/avatars/default_player.png";
+  return "assets/avatars/default_prop.png";
+}
+
+/**
+ * Установить аватарку текущего объекта взаимодействия.
+ * @param {{src?: string; kind?: "npc"|"building"|"prop"|"trash"|"car"}|null} payload
+ */
+function setStopInteractAvatar(payload) {
+  const img = qid("stopInteractAvatar");
+  if (!img) return;
+
+  const kind = payload && payload.kind ? payload.kind : "prop";
+  const src = payload && payload.src ? payload.src : "";
+
+  // Никогда не оставляем пустой src (иначе “битая картинка”)
+  img.src = src || getDefaultAvatarSrc(kind);
+}
+
+/* ===== toast ===== */
 
 function ensureStopToastEl() {
   const root = qid("screen-stop");
@@ -107,20 +167,27 @@ function getInventoryIconSrc(iconKey) {
   return "";
 }
 
+/**
+ * Открыть/закрыть инвентарь БЕЗ изменения высоты HUD:
+ * - panel всегда display:flex
+ * - скрываем через класс .open на wrapper (visibility/opacity)
+ */
 function toggleInventoryUI(force) {
   if (typeof force === "boolean") stopInventoryOpen = force;
   else stopInventoryOpen = !stopInventoryOpen;
 
-  const panel = qid("inventoryPanel");
+  const wrapper = qid("inventoryWrapper");
   const btn = qid("btnToggleInventory");
-  if (!panel || !btn) return;
+  if (!wrapper || !btn) return;
 
   if (stopInventoryOpen) {
-    panel.style.display = "flex";
+    wrapper.classList.add("open");
     btn.textContent = "Инвентарь (I) ▴";
+    btn.setAttribute("aria-expanded", "true");
   } else {
-    panel.style.display = "none";
+    wrapper.classList.remove("open");
     btn.textContent = "Инвентарь (I) ▾";
+    btn.setAttribute("aria-expanded", "false");
   }
 }
 
@@ -157,7 +224,7 @@ function renderInventoryUI() {
     icon.style.imageRendering = "pixelated";
 
     const src = it.iconKey ? getInventoryIconSrc(it.iconKey) : "";
-    if (src) icon.src = src;
+    icon.src = src || "";
 
     iconWrap.appendChild(icon);
 
@@ -177,26 +244,34 @@ function initStopSceneUI() {
   if (btn) {
     btn.onclick = () => {
       toggleInventoryUI();
+      // HUD высота фиксирована, но на всякий случай: если где-то шрифты/скролл меняют рендер —
+      // ресайзим canvas под фиксированный bottomBar.
+      if (typeof resizeStopCanvas === "function") resizeStopCanvas();
     };
   }
 
   toggleInventoryUI(false);
-
   renderInventoryUI();
   renderStopDialog();
   ensureStopToastEl();
 
+  // player avatar
   const avatarEl = qid("playerAvatar");
   if (avatarEl) {
-    // ВАЖНО: выбор персонажа в state — это characterId
     const cfg = typeof getCharacterById === "function"
       ? getCharacterById(state.characterId || "tourist")
       : null;
 
-    if (cfg && cfg.avatarKey && sprites[cfg.avatarKey]) {
-      avatarEl.src = sprites[cfg.avatarKey].src;
-    }
+    const src = cfg && cfg.avatarKey ? getAvatarSrcByKey(cfg.avatarKey) : "";
+    avatarEl.src = src || getDefaultAvatarSrc("player");
   }
+
+  // interact avatar default (нейтральный проп)
+  setStopInteractAvatar({ kind: "prop", src: getDefaultAvatarSrc("prop") });
+
+  // если пока нет объекта — не показываем текст “Объект” (в HTML alt не трогаем)
+  setStopObjectTitle("");
+  setStopHint("");
 
   renderStats();
 }

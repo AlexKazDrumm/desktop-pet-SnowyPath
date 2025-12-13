@@ -124,46 +124,61 @@
       <section id="screen-stop" class="screen screen-stop hidden">
         <canvas id="stopCanvas"></canvas>
 
+        <!-- HUD BAR (fixed height) -->
         <div class="stop-bottom-bar">
-          <div class="stop-bottom-left">
-            <div id="stopObjectTitle" class="stop-object-title"></div>
-            <div id="stopHint" class="hint"></div>
-          </div>
-
-          <div class="stop-bottom-center">
-            <div id="stopDialog" class="stop-dialog hidden">
-              <div id="stopDialogText" class="stop-dialog-text"></div>
-              <div id="stopDialogChoices" class="stop-dialog-choices"></div>
-            </div>
-
-            <div id="inventoryWrapper" class="inventory-wrapper">
-              <button
-                id="btnToggleInventory"
-                class="inventory-toggle"
-                type="button"
-              >
-                Инвентарь (I) ▾
-              </button>
-              <div id="inventoryPanel" class="inventory-panel">
-                <!-- слоты инвентаря -->
+          <!-- HUD GRID: 2 rows x 16 cols -->
+          <div class="stop-hud-grid">
+            <!-- cols 1-2, rows 1-2: interact avatar -->
+            <div class="stop-hud-interact-avatar">
+              <div class="hud-avatar-wrap">
+                <img id="stopInteractAvatar" class="hud-avatar" alt="Объект" />
               </div>
             </div>
-          </div>
 
-          <div class="stop-bottom-right">
-            <div id="stopPlayerPanel" class="stop-player-panel">
-              <div class="player-avatar-wrap">
-                <img
-                  id="playerAvatar"
-                  class="player-avatar"
-                  alt="Персонаж"
-                />
+            <!-- cols 3-4, rows 1-2: interact title + description -->
+            <div class="stop-hud-interact-text">
+              <div id="stopObjectTitle" class="stop-object-title"></div>
+              <div id="stopHint" class="hint"></div>
+            </div>
+
+            <!-- cols 5-12, row 1: dialog -->
+            <div class="stop-hud-dialog">
+              <div id="stopDialog" class="stop-dialog hidden">
+                <div id="stopDialogText" class="stop-dialog-text"></div>
+                <div id="stopDialogChoices" class="stop-dialog-choices"></div>
               </div>
+            </div>
+
+            <!-- cols 5-12, row 2: inventory (top) + controls (bottom) -->
+            <div class="stop-hud-center-bottom">
+              <div id="inventoryWrapper" class="inventory-wrapper">
+                <button
+                  id="btnToggleInventory"
+                  class="inventory-toggle"
+                  type="button"
+                >
+                  Инвентарь (I) ▾
+                </button>
+                <div id="inventoryPanel" class="inventory-panel">
+                  <!-- слоты инвентаря -->
+                </div>
+              </div>
+
+              <div id="stopControls" class="stop-controls">
+                Управление: WASD / стрелки — ходьба • E — взаимодействие • M — карта • I — инвентарь
+              </div>
+            </div>
+
+            <!-- cols 13-14, rows 1-2: stats -->
+            <div class="stop-hud-stats">
               <div id="stopStats" class="stop-stats"></div>
             </div>
 
-            <div class="stop-controls">
-              Управление: WASD / стрелки — ходьба • E — взаимодействие • M — карта • I — инвентарь
+            <!-- cols 15-16, rows 1-2: player avatar -->
+            <div class="stop-hud-player-avatar">
+              <div class="hud-avatar-wrap">
+                <img id="playerAvatar" class="hud-avatar" alt="Персонаж" />
+              </div>
             </div>
           </div>
         </div>

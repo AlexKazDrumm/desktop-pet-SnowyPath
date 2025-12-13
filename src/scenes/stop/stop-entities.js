@@ -124,8 +124,9 @@ function computeHubBuildingsFromCells(layout, buildings) {
     const innerH = boxH - inset * 2;
 
     const spriteKey = b.spriteKey || null;
+    const avatarKey = b.avatarKey || null;
 
-    // ВАЖНО: тянем спрайт в inner-box всегда (даже если он маленький/с другими пропорциями)
+    // ВАЖНО: тянем спрайт в inner-box всегда
     const stretched = { x: innerX, y: innerY, w: innerW, h: innerH };
 
     const belowRow = y1 + 1;
@@ -150,6 +151,7 @@ function computeHubBuildingsFromCells(layout, buildings) {
       label: b.label,
       hint: b.hint,
       spriteKey,
+      avatarKey,
       x: stretched.x,
       y: stretched.y,
       w: stretched.w,
@@ -212,6 +214,7 @@ function computeHubProps(hubCfg, layout) {
       cx: p.cx,
       cy: p.cy,
       spriteKey: p.spriteKey || null,
+      avatarKey: p.avatarKey || null,
       solid: !!p.solid,
       angle,
       x: r.x,

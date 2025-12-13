@@ -71,7 +71,7 @@ function parseHubAscii(hubCfg) {
   /** @type {boolean[][]} */
   const visited = Array.from({ length: rows }, () => Array.from({ length: cols }, () => false));
 
-  /** @type {Array<{char:string; x0:number;y0:number;x1:number;y1:number; type:any; label:string; hint:string; spriteKey:string|null; id:string}>} */
+  /** @type {Array<{char:string; x0:number;y0:number;x1:number;y1:number; type:any; label:string; hint:string; spriteKey:string|null; avatarKey:string|null; id:string}>} */
   const buildings = [];
 
   /** @type {null|{cx:number; cy:number}} */
@@ -124,8 +124,9 @@ function parseHubAscii(hubCfg) {
         : null;
 
       const label = meta && meta.label ? meta.label : "Здание";
-      const hint = meta && meta.hint ? meta.hint : "E — осмотреть (ничего полезного).";
+      const hint = meta && meta.hint ? meta.hint : "";
       const spriteKey = meta && meta.spriteKey ? meta.spriteKey : null;
+      const avatarKey = meta && meta.avatarKey ? meta.avatarKey : null;
       const type = meta && meta.type ? meta.type : "passive";
 
       buildings.push({
@@ -138,6 +139,7 @@ function parseHubAscii(hubCfg) {
         label,
         hint,
         spriteKey,
+        avatarKey,
         id: `${target}_${hubCfg.pointIndex}_${minX}_${minY}_${maxX}_${maxY}`
       });
     }

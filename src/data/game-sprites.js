@@ -3,7 +3,7 @@
 /**
  * game-sprites.js
  *
- * Актуальные правила:
+ * Правила:
  *
  * 1) Хабы — тайловые. Нужны generic-тайлы и generic-дороги:
  *    - tile_snow / tile_sidewalk / tile_grass
@@ -94,6 +94,17 @@
     avatar_forester: "assets/avatars/forester.png",
     avatar_mechanic: "assets/avatars/mechanic.png",
 
+    // аватарка машины для interact HUD (используется stop-render.js: makeInteractAvatarPayload("avatar_car"...))
+    avatar_car: "assets/avatars/avatar_car.png",
+
+    // дефолтные аватарки (используются stop-ui.js / stop-render.js как fallback)
+    default_prop: "assets/avatars/default_prop.png",
+    default_npc: "assets/avatars/default_npc.png",
+    default_building: "assets/avatars/default_building.png",
+    default_trash: "assets/avatars/default_trash.png",
+    default_car: "assets/avatars/default_car.png",
+    default_player: "assets/avatars/default_player.png",
+
     /* ===== Inventory icons ===== */
     item_canister: "assets/items/item_canister.png",
     item_axe: "assets/items/item_axe.png",
@@ -146,7 +157,7 @@
   window.GameData.sprites.sprites = sprites;
 
   /**
-   * Хелпер: безопасно получить спрайт по ключу
+   * Безопасно получить спрайт по ключу (только если реально загружен).
    * @param {string} key
    * @returns {HTMLImageElement|null}
    */
@@ -156,5 +167,17 @@
     return null;
   }
 
+  /**
+   * Безопасно получить src по ключу (чтобы UI не ловил "битые" картинки).
+   * @param {string} key
+   * @returns {string}
+   */
+  function getSpriteSrcByKey(key) {
+    const img = getSpriteByKey(key);
+    if (img && img.src) return img.src;
+    return "";
+  }
+
   window.GameData.sprites.getSpriteByKey = getSpriteByKey;
+  window.GameData.sprites.getSpriteSrcByKey = getSpriteSrcByKey;
 })();

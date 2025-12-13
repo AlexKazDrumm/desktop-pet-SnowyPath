@@ -2,6 +2,8 @@
 
 /**
  * Ресайз канваса stop + корректировка нижней панели.
+ * Теперь нижняя панель НЕ имеет фиксированной высоты.
+ * Мы измеряем её реальную высоту и под неё подрезаем канвас.
  */
 
 function resizeStopCanvas() {
@@ -16,48 +18,47 @@ function resizeStopCanvas() {
 
   if (width <= 0 || totalHeight <= 0) return;
 
-  const maxCanvasHeight = Math.max(100, totalHeight - STOP_BOTTOM_BAR_MIN_HEIGHT);
+  // 1) сначала выставим "черновые" размеры, чтобы DOM мог посчитать высоту HUD
+  stopCanvas.width = width;
+  stopCanvas.height = totalHeight;
+  stopCanvas.style.bottom = "0px";
 
-  const tmpLayout = computeGridLayout(width, maxCanvasHeight);
-
-  let canvasHeight = tmpLayout.gridH;
-
-  if (canvasHeight > maxCanvasHeight) {
-    const fittedLayout = computeGridLayout(width, maxCanvasHeight);
-    canvasHeight = fittedLayout.gridH;
+  // 2) измеряем фактическую высоту нижней панели
+  let bottomBarHeight = 0;
+  if (bottomBarEl) {
+    const rect = bottomBarEl.getBoundingClientRect();
+    bottomBarHeight = Math.max(0, Math.floor(rect.height));
   }
 
-  let bottomBarHeight = totalHeight - canvasHeight;
+  // 3) доступная высота под канвас
+  const maxCanvasHeight = Math.max(100, totalHeight - bottomBarHeight);
 
-  if (bottomBarHeight < STOP_BOTTOM_BAR_MIN_HEIGHT) {
-    bottomBarHeight = STOP_BOTTOM_BAR_MIN_HEIGHT;
-    canvasHeight = Math.max(100, totalHeight - bottomBarHeight);
-  }
+  // 4) канвас по высоте = ровно gridH (чтобы сетка не "плавала"), но не больше доступного
+  const layout = computeGridLayout(width, maxCanvasHeight);
+  const canvasHeight = Math.min(layout.gridH, maxCanvasHeight);
 
   stopCanvas.width = width;
   stopCanvas.height = canvasHeight;
 
+  // 5) канвас прижимаем над нижней панелью
   stopCanvas.style.bottom = `${bottomBarHeight}px`;
 
-  if (bottomBarEl) {
-    bottomBarEl.style.height = `${bottomBarHeight}px`;
-  }
-
+  // 6) пересчёт позиции игрока по нормализованным координатам
   if (state.mode === "stop") {
-    const layout = computeGridLayout(stopCanvas.width, stopCanvas.height);
+    const newLayout = computeGridLayout(stopCanvas.width, stopCanvas.height);
 
     if (typeof state.hub.xNorm === "number" && typeof state.hub.yNorm === "number") {
-      state.hub.x = layout.offsetX + state.hub.xNorm * layout.gridW;
-      state.hub.y = layout.offsetY + state.hub.yNorm * layout.gridH;
+      state.hub.x = newLayout.offsetX + state.hub.xNorm * newLayout.gridW;
+      state.hub.y = newLayout.offsetY + state.hub.yNorm * newLayout.gridH;
     } else {
-      state.hub.x = clamp(state.hub.x, layout.offsetX, layout.offsetX + layout.gridW);
-      state.hub.y = clamp(state.hub.y, layout.offsetY, layout.offsetY + layout.gridH);
+      state.hub.x = clamp(state.hub.x, newLayout.offsetX, newLayout.offsetX + newLayout.gridW);
+      state.hub.y = clamp(state.hub.y, newLayout.offsetY, newLayout.offsetY + newLayout.gridH);
 
-      state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
-      state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
+      state.hub.xNorm = (state.hub.x - newLayout.offsetX) / newLayout.gridW;
+      state.hub.yNorm = (state.hub.y - newLayout.offsetY) / newLayout.gridH;
     }
 
-    state.hub.xNorm = (state.hub.x - layout.offsetX) / layout.gridW;
-    state.hub.yNorm = (state.hub.y - layout.offsetY) / layout.gridH;
+    state.hub.xNorm = (state.hub.x - newLayout.offsetX) / newLayout.gridW;
+    state.hub.yNorm = (state.hub.y - newLayout.offsetY) / newLayout.gridH;
   }
 }

@@ -56,12 +56,64 @@ function getCurrentHubGridConfig() {
   return getHubGridConfig(state.currentPointIndex || 0);
 }
 
+/**
+ * Подготовка src аватарки интеракт-объекта с поддержкой themed-override.
+ *
+ * Правила:
+ * 1) Если themeKey есть:
+ *    - сначала пытаемся найти themed-версию:
+ *      - для avatar_*: assets/avatars/{themeKey}_{avatarKey}.png
+ *      - для спрайтов: sprites[`${themeKey}_${avatarKey}`]
+ * 2) Потом обычную:
+ *    - для avatar_*: assets/avatars/{avatarKey}.png
+ *    - для спрайтов: sprites[avatarKey]
+ *
+ * @param {string|null} avatarKey
+ * @param {"npc"|"building"|"prop"|"trash"|"car"} kind
+ * @param {string} themeKey
+ * @returns {{src:string, kind:"npc"|"building"|"prop"|"trash"|"car"}}
+ */
+function makeInteractAvatarPayload(avatarKey, kind, themeKey) {
+  const key = String(avatarKey || "");
+  const tk = String(themeKey || "");
+  let src = "";
+
+  if (key) {
+    // 1) themed first
+    if (tk) {
+      if (key.startsWith("avatar_")) {
+        // themed avatar as file
+        src = `assets/avatars/${tk}_${key}.png`;
+      } else if (typeof sprites === "object" && sprites) {
+        const themedKey = `${tk}_${key}`;
+        if (sprites[themedKey] && sprites[themedKey].src) {
+          src = sprites[themedKey].src;
+        }
+      }
+    }
+
+    // 2) fallback to base
+    if (!src) {
+      if (key.startsWith("avatar_")) {
+        src = `assets/avatars/${key}.png`;
+      } else if (typeof sprites === "object" && sprites && sprites[key] && sprites[key].src) {
+        src = sprites[key].src;
+      }
+    }
+  }
+
+  return { src, kind };
+}
+
 function renderStopHub(dt) {
   if (!stopCtx || !stopCanvas) return;
 
   if (!stopUiInited) {
     initStopSceneUI();
     stopUiInited = true;
+
+    // после инициализации UI — подгоняем canvas под фиксированный HUD
+    if (typeof resizeStopCanvas === "function") resizeStopCanvas();
   }
 
   if (stopToastTimer > 0) {
@@ -258,6 +310,9 @@ function renderStopHub(dt) {
   let currentHint = "";
   let currentTitle = "";
 
+  /** @type {{src:string, kind:"npc"|"building"|"prop"|"trash"|"car"}|null} */
+  let currentAvatar = null;
+
   buildings.forEach((poi) => {
     const isInsideBand = isNearPOI(poi);
 
@@ -283,11 +338,12 @@ function renderStopHub(dt) {
       ctx.fillRect(poi.x, poi.y, poi.w, poi.h);
     }
 
-    // ВАЖНО: подписи зданий на сетке НЕ рисуем (они есть в меню)
+    // подписи зданий на сетке НЕ рисуем
 
     if (isInsideBand && !state.hub.inCar) {
-      currentHint = poi.hint;
-      currentTitle = poi.label;
+      currentHint = poi.hint || "";
+      currentTitle = poi.label || "";
+      currentAvatar = makeInteractAvatarPayload(poi.avatarKey || null, "building", themeKey);
     }
   });
 
@@ -301,6 +357,12 @@ function renderStopHub(dt) {
 
       if (nearProp.label) currentTitle = nearProp.label;
       if (nearProp.hint) currentHint = nearProp.hint;
+
+      let kind = "prop";
+      if (nearProp.kind === "npc") kind = "npc";
+      if (nearProp.kind === "trash") kind = "trash";
+
+      currentAvatar = makeInteractAvatarPayload(nearProp.avatarKey || null, kind, themeKey);
     }
   }
 
@@ -316,6 +378,7 @@ function renderStopHub(dt) {
     if (isNearCar(car)) {
       currentTitle = "Машина";
       currentHint = state.hub.inCar ? "E — выйти из машины" : "E — сесть в машину";
+      currentAvatar = makeInteractAvatarPayload("avatar_car", "car", themeKey);
     }
   }
 
@@ -341,15 +404,14 @@ function renderStopHub(dt) {
     ctx.restore();
   }
 
-  setStopObjectTitle(currentTitle);
+  // текст слева: если рядом ничего — пусто (никаких “Объект”)
+  setStopObjectTitle(currentTitle || "");
+  setStopHint(currentHint || "");
 
-  if (currentHint) {
-    setStopHint(currentHint);
-  } else {
-    setStopHint(
-      (state.hub.inCar
-        ? "Подойди к машине и нажми E, чтобы выйти. M — открыть карту маршрута."
-        : "Зайди в зону под зданием (тонкая полоса) и нажми E. M — открыть карту маршрута.")
-    );
+  // аватарка интеракт-объекта:
+  // - если ничего рядом — ставим нейтральный дефолт prop (и не даём пустому src “сломаться”)
+  if (typeof setStopInteractAvatar === "function") {
+    if (currentAvatar) setStopInteractAvatar(currentAvatar);
+    else setStopInteractAvatar({ kind: "prop", src: "assets/avatars/default_prop.png" });
   }
 }
