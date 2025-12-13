@@ -203,13 +203,6 @@ function drawTextInRect(ctx, text, r, opts) {
     }
 
     if (cur && outLines.length < maxLines) pushLine(cur);
-
-    // разделяем абзацы
-    if (p < paragraphs.length - 1 && outLines.length < maxLines) {
-      // имитируем перенос строки
-      // (если хочешь прям пустую строку — раскомментируй)
-      // pushLine("");
-    }
   }
 
   // рисуем
@@ -280,7 +273,7 @@ function renderStopHub(dt) {
     if (typeof resizeStopCanvas === "function") resizeStopCanvas();
   }
 
-  // ВАЖНО: теперь реально существует и будет обновлять stopHudState.statsText
+  // Статы синкаем (может быть полезно для DOM верхней панели)
   if (typeof syncStopStatsIfNeeded === "function") syncStopStatsIfNeeded();
 
   if (stopToastTimer > 0) {
@@ -553,6 +546,18 @@ function renderStopHub(dt) {
   if (currentAvatar) setStopInteractAvatar(currentAvatar);
   else setStopInteractAvatar({ kind: "prop", src: "assets/avatars/default_prop.png" });
 
+  // ===== ВАЖНО: ФОРСИРУЕМ ТЕКСТ СТАТОВ КАЖДЫЙ КАДР =====
+  // чтобы не зависеть от редких синков/порядка вызовов/пустых значений
+  if (typeof buildStopStatsText === "function") {
+    stopHudState.statsText = buildStopStatsText();
+  } else {
+    const money = typeof state.money === "number" ? state.money : 0;
+    const fuel = typeof state.fuel === "number" ? state.fuel : 0;
+    const hunger = typeof state.hunger === "number" ? state.hunger : 0;
+    const fatigue = typeof state.fatigue === "number" ? state.fatigue : 0;
+    stopHudState.statsText = `Money: ${money}\nFuel:  ${fuel}\nHungr: ${hunger}\nFatig: ${fatigue}`;
+  }
+
   // ===== draw HUD 16x2 =====
   STOP_HUD_HIT_REGIONS.length = 0;
 
@@ -575,7 +580,7 @@ function renderStopHub(dt) {
   const paImg = paSrc ? getHudImageBySrc(paSrc) : null;
   drawAvatarInRect(ctx, paImg, rPlayerAvatar);
 
-  // ===== левый текст: теперь реально 2 строки под заголовок и 3 под подсказку =====
+  // ===== левый текст =====
   drawPanel(ctx, rInteractText);
 
   const titleRect = {
@@ -611,11 +616,11 @@ function renderStopHub(dt) {
   // ===== stats =====
   drawPanel(ctx, rStats);
   drawTextInRect(ctx, stopHudState.statsText, rStats, {
-    fontSize: Math.max(10, Math.floor(stage.cellSize * 0.18)),
+    fontSize: Math.max(9, Math.floor(stage.cellSize * 0.16)),
     color: "#e5e7eb",
     maxLines: 6,
-    lineHeight: Math.max(12, Math.floor(stage.cellSize * 0.22)),
-    padding: 10
+    lineHeight: Math.max(11, Math.floor(stage.cellSize * 0.20)),
+    padding: 4 // было 10 — на маленьких cellSize реально убивало текст
   });
 
   // ===== dialog =====

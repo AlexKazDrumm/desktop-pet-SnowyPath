@@ -146,14 +146,18 @@ function hideStopToast() {
 
 /** ===== stats text (используется stop-render.js) ===== */
 
+/**
+ * ВАЖНО:
+ * - без эмодзи и спец-символов, чтобы 100% рисовалось в canvas на любом monospace.
+ * - компактно (4 строки) под область 13-14.
+ */
 function buildStopStatsText() {
   const money = typeof state.money === "number" ? state.money : 0;
   const fuel = typeof state.fuel === "number" ? state.fuel : 0;
   const hunger = typeof state.hunger === "number" ? state.hunger : 0;
   const fatigue = typeof state.fatigue === "number" ? state.fatigue : 0;
 
-  // компактно в 2 колонки (13-14)
-  return `₽${money}\n⛽ ${fuel}\n🍖 ${hunger}\n😴 ${fatigue}`;
+  return `Money: ${money}\nFuel:  ${fuel}\nHungr: ${hunger}\nFatig: ${fatigue}`;
 }
 
 function renderStats() {
@@ -164,7 +168,8 @@ function renderStats() {
   try {
     const statsBar = (typeof qid === "function") ? qid("statsBar") : null;
     if (statsBar) {
-      statsBar.textContent = `₽${state.money} • ⛽${state.fuel} • 🍖${state.hunger} • 😴${state.fatigue}`;
+      // тут можно оставить эмодзи — это DOM, он нормально живёт
+      statsBar.textContent = `Money ${state.money} • Fuel ${state.fuel} • Hunger ${state.hunger} • Fatigue ${state.fatigue}`;
     }
 
     const stopStats = (typeof qid === "function") ? qid("stopStats") : null;
@@ -178,8 +183,7 @@ function renderStats() {
 }
 
 /**
- * ВОТ ЭТОГО У ТЕБЯ НЕ БЫЛО.
- * renderStopHub() зовёт syncStopStatsIfNeeded(), но функция отсутствовала => статы не синкались.
+ * renderStopHub() зовёт syncStopStatsIfNeeded()
  */
 function syncStopStatsIfNeeded() {
   const money = typeof state.money === "number" ? state.money : 0;
