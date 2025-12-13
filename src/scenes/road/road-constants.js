@@ -11,10 +11,16 @@ const ROAD_X0 = 6;
 const ROAD_X1 = 9;
 
 // интеракт-зона (зелёная) — крайняя правая клетка дороги (col 10 => x=9)
-const ROAD_INTERACT_X = ROAD_X1;
+const ROAD_CAR_START_X = (ROAD_X0 + ROAD_X1) / 2;
 
-// NPC стоит на обочине справа от дороги (col 11 => x=10)
-const ROAD_NPC_X = ROAD_X1 + 1;
+// интеракт-зона (зелёная)
+const ROAD_RIGHT_INTERACT_X = ROAD_X1; // правая сторона дороги (col 10 => x=9)
+const ROAD_LEFT_INTERACT_X = ROAD_X0; // левая сторона дороги (col 7 => x=6)
+const ROAD_INTERACT_FRAC = 0.28; // доля клетки, занимаемая интеракт-зоной
+
+// NPC стоит на обочине
+const ROAD_RIGHT_NPC_X = ROAD_X1 + 1; // справа от дороги (col 11 => x=10)
+const ROAD_LEFT_NPC_X = ROAD_X0 - 1; // слева от дороги (col 6 => x=5)
 
 function isRoadX(x) {
   return x >= ROAD_X0 && x <= ROAD_X1;
@@ -29,9 +35,14 @@ if (typeof window !== "undefined") {
 
   window.ROAD_X0 = ROAD_X0;
   window.ROAD_X1 = ROAD_X1;
+  window.ROAD_CAR_START_X = ROAD_CAR_START_X;
 
-  window.ROAD_INTERACT_X = ROAD_INTERACT_X;
-  window.ROAD_NPC_X = ROAD_NPC_X;
+  window.ROAD_RIGHT_INTERACT_X = ROAD_RIGHT_INTERACT_X;
+  window.ROAD_LEFT_INTERACT_X = ROAD_LEFT_INTERACT_X;
+  window.ROAD_INTERACT_FRAC = ROAD_INTERACT_FRAC;
+
+  window.ROAD_RIGHT_NPC_X = ROAD_RIGHT_NPC_X;
+  window.ROAD_LEFT_NPC_X = ROAD_LEFT_NPC_X;
 
   window.isRoadX = isRoadX;
 }

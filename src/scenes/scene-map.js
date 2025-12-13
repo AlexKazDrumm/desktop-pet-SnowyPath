@@ -101,7 +101,7 @@ function tryStartTravelToSelected() {
     state.road.distanceTravelled = 0;
     state.road.pausedForEvent = false;
     state.road.hitchhikerEvents = [];
-    state.road.carX = ROAD_X1;
+    state.road.carX = ROAD_CAR_START_X;
     state.road.carScreenRow = ROAD_CAR_SCREEN_ROW;
     state.road.carAngle = 0;
     state.road.scroll = 0;
@@ -115,10 +115,14 @@ function tryStartTravelToSelected() {
       if (typeof buildRoadEntities === "function") {
         state.road.entities = buildRoadEntities(routeSegs);
       }
+      if (typeof buildRoadBuildings === "function") {
+        state.road.buildings = buildRoadBuildings(routeSegs);
+      }
     } catch (e) {
       console.warn("Failed to build road rows/entities:", e);
       state.road.worldRows = state.road.worldRows || [];
       state.road.entities = state.road.entities || [];
+      state.road.buildings = state.road.buildings || [];
     }
 
     // collect hitchhiker events between segments

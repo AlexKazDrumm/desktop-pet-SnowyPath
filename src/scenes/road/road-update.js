@@ -19,7 +19,7 @@ function updateRoad(dt) {
   }
 
   // ===== ИНИТ =====
-  if (typeof state.road.carX !== "number") state.road.carX = ROAD_X1;
+  if (typeof state.road.carX !== "number") state.road.carX = ROAD_CAR_START_X;
   if (typeof state.road.carScreenRow !== "number") state.road.carScreenRow = ROAD_CAR_SCREEN_ROW;
 
   // угол руления (радианы): 0 = прямо; отриц = влево; полож = вправо
@@ -115,19 +115,22 @@ function updateRoad(dt) {
 
   const entities = Array.isArray(state.road.entities) ? state.road.entities : [];
   const carWorldFloat = state.road.scroll + (viewRows - 1 - carScreenRow);
+  state.road._activeBuildingId = null;
   for (const ent of entities) {
     if (!ent || ent.triggered || ent._pending) continue;
 
     // trigger when the camera/car is near the entity's world-row and within X proximity
-    const zoneX = (typeof ent.xZone === 'number') ? ent.xZone : ROAD_INTERACT_X;
+    const side = ent.side === "left" ? "left" : "right";
+    const zoneX = (typeof ent.xZone === 'number')
+      ? ent.xZone
+      : (side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
     const rowDist = Math.abs((ent.row || 0) - carWorldFloat);
     // require a *real* overlap: compute fractional overlap between
-    // car cell [carX, carX+1) and the interact zone which sits in the
-    // right portion of the `zoneX` cell. We approximate the zone as
-    // occupying the right ~28% of the cell (matches render logic).
-    const zoneFrac = 0.28;
-    const zoneStart = zoneX + (1 - zoneFrac);
-    const zoneEnd = zoneX + 1;
+    // car cell [carX, carX+1) and the interact zone which sits near
+    // the road edge of the `zoneX` cell.
+    const zoneFrac = (typeof ROAD_INTERACT_FRAC === 'number') ? ROAD_INTERACT_FRAC : 0.28;
+    const zoneStart = side === "left" ? zoneX : zoneX + (1 - zoneFrac);
+    const zoneEnd = side === "left" ? zoneX + zoneFrac : zoneX + 1;
     const carLeft = (state.road.carX || 0);
     const carRight = carLeft + 1;
 
@@ -144,6 +147,28 @@ function updateRoad(dt) {
         ent.triggered = true;
       }
 
+      break;
+    }
+  }
+
+  // detect nearby buildings (для HUD/подсветки зон)
+  const buildings = Array.isArray(state.road.buildings) ? state.road.buildings : [];
+  for (const b of buildings) {
+    if (!b) continue;
+    const side = b.side === "left" ? "left" : "right";
+    const zoneX = (typeof b.interactX === 'number')
+      ? b.interactX
+      : (side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
+    const zoneFrac = (typeof ROAD_INTERACT_FRAC === 'number') ? ROAD_INTERACT_FRAC : 0.28;
+    const zoneStart = side === "left" ? zoneX : zoneX + (1 - zoneFrac);
+    const zoneEnd = side === "left" ? zoneX + zoneFrac : zoneX + 1;
+    const carLeft = (state.road.carX || 0);
+    const carRight = carLeft + 1;
+    const overlapsX = (carRight > zoneStart) && (carLeft < zoneEnd);
+    const withinRows = carWorldFloat >= (b.y0 - 0.25) && carWorldFloat <= (b.y1 + 0.25);
+
+    if (withinRows && overlapsX) {
+      state.road._activeBuildingId = b.id || null;
       break;
     }
   }

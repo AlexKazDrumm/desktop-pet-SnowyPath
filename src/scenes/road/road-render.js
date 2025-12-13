@@ -86,29 +86,50 @@ function _drawSpriteInCell(ctx, img, r, padFrac) {
   ctx.drawImage(img, r.x + pad, r.y + pad, w, h);
 }
 
-function _drawHitchhikerSpriteInCell(ctx, img, r, padFrac, shiftFrac) {
+function _drawHitchhikerSpriteInCell(ctx, img, r, padFrac, shiftFrac, facingRight) {
   // pad and size like normal sprite
   const pad = Math.floor(r.w * (padFrac || 0.10));
   const w = Math.max(1, r.w - pad * 2);
   const h = Math.max(1, r.h - pad * 2);
 
-  // shift closer to the road: positive shiftFrac moves left (towards road), in fraction of cell width
+  // shift closer to the road: towards the centerline depending on side
   const shiftPx = Math.floor((shiftFrac || 0.20) * r.w);
 
   // we need to flip horizontally because source images face right by default
-  const dx = r.x + pad - shiftPx;
+  const dx = r.x + pad + (facingRight ? shiftPx : -shiftPx);
   const dy = r.y + pad;
   const dw = w;
   const dh = h;
 
   const cx = dx + dw / 2;
   const cy = dy + dh / 2;
+
+  const shouldFlip = !facingRight;
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(-1, 1);
   ctx.translate(-cx, -cy);
   ctx.drawImage(img, dx, dy, dw, dh);
   ctx.restore();
+}
+
+function _computeZoneBounds(zoneX, side) {
+  const zoneFrac = typeof ROAD_INTERACT_FRAC === "number" ? ROAD_INTERACT_FRAC : 0.28;
+  const s = side === "left" ? "left" : "right";
+
+  if (s === "left") return { start: zoneX, end: zoneX + zoneFrac };
+  return { start: zoneX + (1 - zoneFrac), end: zoneX + 1 };
+}
+
+function _computeZoneRect(layout, zoneX, syTop, heightCells, side) {
+  const zrFull = _roadCellRect(layout, zoneX, syTop);
+  const frac = (typeof ROAD_INTERACT_FRAC === "number") ? ROAD_INTERACT_FRAC : 0.28;
+  const zrW = Math.max(1, Math.floor(zrFull.w * frac));
+  const alignLeft = side === "left";
+  const zrX = alignLeft ? zrFull.x + 2 : zrFull.x + zrFull.w - zrW - 2;
+  const zrY = zrFull.y;
+  const zrH = Math.max(1, heightCells * zrFull.h);
+  return { x: zrX, y: zrY, w: zrW, h: zrH };
 }
 
 function _drawInteractZone(ctx, zr, strong) {
@@ -203,7 +224,7 @@ function renderRoadScene() {
   const worldTopRow = Math.max(0, scrollInt);
   const worldBottomRow = worldTopRow + viewRows; // inclusive (we draw sy = -1..viewRows-1)
   // precompute car rect (canvas coords) for collision checks
-  const cxF = (typeof state.road.carX === "number") ? state.road.carX : ROAD_X1;
+  const cxF = (typeof state.road.carX === "number") ? state.road.carX : ROAD_CAR_START_X;
   const carRect = {
     x: layout.x0 + Math.floor(cxF * layout.cellW),
     y: layout.y0 + carScreenRow * layout.cellH,
@@ -259,10 +280,62 @@ function renderRoadScene() {
     }
   }
 
+  // ===== roadside buildings =====
+  const buildings = Array.isArray(state.road.buildings) ? state.road.buildings : [];
+  const carWorldFloat = scroll + (viewRows - 1 - carScreenRow);
+  const carLeftF = (state.road.carX || 0);
+  const carRightF = carLeftF + 1;
+
+  for (const b of buildings) {
+    if (!b || typeof b.x0 !== "number" || typeof b.y0 !== "number") continue;
+
+    const bx0 = Math.max(0, Math.floor(b.x0));
+    const bx1 = Math.max(bx0, Math.floor(typeof b.x1 === "number" ? b.x1 : b.x0));
+    const by0 = Math.max(0, Math.floor(b.y0));
+    const by1 = Math.max(by0, Math.floor(typeof b.y1 === "number" ? b.y1 : b.y0));
+
+    const visibleY0 = Math.max(by0, worldTopRow - 1);
+    const visibleY1 = Math.min(by1, worldBottomRow);
+    if (visibleY0 > visibleY1) continue;
+
+    const heightCells = visibleY1 - visibleY0 + 1;
+    const screenTopRow = viewRows - 1 - (visibleY1 - worldTopRow);
+    const screenBottomRow = viewRows - 1 - (visibleY0 - worldTopRow);
+
+    const topRect = _roadCellRect(layout, bx0, screenTopRow);
+    const boxX = topRect.x;
+    const boxY = topRect.y;
+    const boxW = Math.max(1, (bx1 - bx0 + 1) * layout.cellW);
+    const boxH = Math.max(1, (screenBottomRow - screenTopRow + 1) * layout.cellH);
+
+    const inset = Math.max(2, Math.floor(layout.cellW * 0.10));
+    const inner = { x: boxX + inset, y: boxY + inset, w: boxW - inset * 2, h: boxH - inset * 2 };
+
+    const sprKey = b.spriteKey || "hubBuilding";
+    const buildingSpr = (typeof getThemedSprite === "function") ? getThemedSprite(themeKey, sprKey) : { img: null };
+    if (buildingSpr && buildingSpr.img) {
+      ctx.drawImage(buildingSpr.img, inner.x, inner.y, inner.w, inner.h);
+    } else {
+      ctx.fillStyle = "rgba(148,163,184,0.85)";
+      ctx.fillRect(inner.x, inner.y, inner.w, inner.h);
+    }
+
+    const side = b.side === "left" ? "left" : "right";
+    const zoneX = (typeof b.interactX === 'number')
+      ? b.interactX
+      : (side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
+    const zr = _computeZoneRect(layout, zoneX, screenTopRow, heightCells, side);
+    const bounds = _computeZoneBounds(zoneX, side);
+    const overlapsX = carRightF > bounds.start && carLeftF < bounds.end;
+    const strong = overlapsX && carWorldFloat >= visibleY0 && carWorldFloat <= (visibleY1 + 0.001);
+    _drawInteractZone(ctx, zr, strong);
+  }
+
+
   // ===== roadside entities + interact zone =====
 
   const entities = Array.isArray(state.road.entities) ? state.road.entities : [];
-  const carCellX = Math.round((typeof state.road.carX === "number") ? state.road.carX : ROAD_X1);
+  const carCellX = Math.round((typeof state.road.carX === "number") ? state.road.carX : ROAD_CAR_START_X);
   const carWorldRow = worldTopRow + (viewRows - 1 - carScreenRow);
   for (const ent of entities) {
     if (!ent || ent.triggered) continue;
@@ -271,8 +344,12 @@ function renderRoadScene() {
 
     const sy = worldBottomRow - row;
 
+    const side = ent.side === "left" ? "left" : "right";
+
     // персонаж на обочине: используем позицию из сущности (`xNpc`) или дефолт
-    const npcX = (typeof ent.xNpc === 'number') ? ent.xNpc : ROAD_NPC_X;
+    const npcX = (typeof ent.xNpc === 'number')
+      ? ent.xNpc
+      : (side === "left" ? ROAD_LEFT_NPC_X : ROAD_RIGHT_NPC_X);
     const xr = _roadCellRect(layout, npcX, sy);
 
     // draw sprite (smaller, same visual scale as hub characters)
@@ -283,8 +360,9 @@ function renderRoadScene() {
 
     if (spr) {
       if (ent.kind === "hitchhiker") {
-        // draw hitchhikers flipped and nudged closer to the road
-        _drawHitchhikerSpriteInCell(ctx, spr, xr, padFrac, 0.20);
+        // draw hitchhikers flipped/nudged closer to the road, facing the road center
+        const facingRight = side === "left";
+        _drawHitchhikerSpriteInCell(ctx, spr, xr, padFrac, 0.20, facingRight);
       } else {
         _drawSpriteInCell(ctx, spr, xr, padFrac);
       }
@@ -294,17 +372,16 @@ function renderRoadScene() {
       ctx.fillRect(xr.x + pad2, xr.y + pad2, xr.w - pad2 * 2, xr.h - pad2 * 2);
     }
 
-    // зелёная интеракт-зона — расположена у левого края спрайта попутчика,
-    // более узкая и прижата к его левой стороне (визуально смежна к NPC).
-    const zoneX = (typeof ent.xZone === 'number') ? ent.xZone : ROAD_INTERACT_X;
-    const zrFull = _roadCellRect(layout, zoneX, sy);
-    // make interact zone narrower (approx 28% width) and align it to the right edge
-    // of the road cell so it visually hugs the hitchhiker on the left side.
-    const zrW = Math.max(1, Math.floor(zrFull.w * 0.28));
-    const zrX = zrFull.x + zrFull.w - zrW - 2;
-    const zr = { x: zrX, y: xr.y + pad, w: zrW, h: spriteH };
-    // strong when the car is actually touching the entity interaction column
-    const strong = Math.abs((state.road.carX || 0) - (zoneX)) < 0.6 && carWorldRow === row;
+    // зелёная интеракт-зона — прижата к стороне дороги (к NPC/зданию)
+    const zoneX = (typeof ent.xZone === 'number')
+      ? ent.xZone
+      : (side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
+    const zr = _computeZoneRect(layout, zoneX, sy, spriteH / layout.cellH, side);
+    const bounds = _computeZoneBounds(zoneX, side);
+    const carLeft = (state.road.carX || 0);
+    const carRight = carLeft + 1;
+    const overlapsX = carRight > bounds.start && carLeft < bounds.end;
+    const strong = overlapsX && carWorldRow === row;
 
     // draw interact zone (thinner)
     ctx.fillStyle = strong ? "rgba(34,197,94,0.65)" : "rgba(34,197,94,0.40)";
@@ -358,12 +435,21 @@ function renderRoadScene() {
       window.stopHudState.interactHint = hh.description || "";
     } else {
       const nearby = (Array.isArray(state.road.entities) ? state.road.entities.find((e) => {
-        if (!e || e.triggered) return false;
-        const eRow = Number(e.row || -999);
-        if (eRow !== carWorldRow) return false;
-        const zoneX = (typeof e.xZone === 'number') ? e.xZone : ROAD_INTERACT_X;
-        return Math.abs((state.road.carX || 0) - zoneX) < 0.6;
-      }) : null);
+          if (!e || e.triggered) return false;
+          const eRow = Number(e.row || -999);
+          if (eRow !== carWorldRow) return false;
+          const eSide = e.side === "left" ? "left" : "right";
+          const zoneX = (typeof e.xZone === 'number')
+            ? e.xZone
+            : (eSide === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
+          const bounds = _computeZoneBounds(zoneX, eSide);
+          const carLeft = (state.road.carX || 0);
+          const carRight = carLeft + 1;
+          return carRight > bounds.start && carLeft < bounds.end;
+        }) : null);
+      const nearbyBuilding = (state.road._activeBuildingId && Array.isArray(state.road.buildings))
+        ? state.road.buildings.find((b) => b && b.id === state.road._activeBuildingId)
+        : null;
       if (nearby) {
         const spr = nearby.kind === "hitchhiker" ? _getHitchhikerSprite(nearby) : _getNpcSprite();
         window.stopHudState.interactAvatar = spr && spr.src ? { kind: "npc", src: spr.src } : { kind: "prop", src: getDefaultAvatarSrc("prop") };
@@ -374,6 +460,11 @@ function renderRoadScene() {
           window.stopHudState.interactTitle = nearby.label || "Пассажир";
           window.stopHudState.interactHint = nearby.hint || "";
         }
+      } else if (nearbyBuilding) {
+        const avatarSrc = nearbyBuilding.avatarKey ? getAvatarSrcByKey(nearbyBuilding.avatarKey) : getDefaultAvatarSrc("building");
+        window.stopHudState.interactAvatar = { kind: "building", src: avatarSrc };
+        window.stopHudState.interactTitle = nearbyBuilding.label || "Здание";
+        window.stopHudState.interactHint = nearbyBuilding.hint || "";
       } else {
         window.stopHudState.interactAvatar = { kind: "prop", src: getDefaultAvatarSrc("prop") };
         window.stopHudState.interactTitle = "";

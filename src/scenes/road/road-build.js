@@ -11,6 +11,65 @@ function _normRow16(row) {
   return s + ".".repeat(16 - s.length);
 }
 
+function _isRoadBuildingAllowed(ch, seg) {
+  if (!ch || typeof isBuildingChar !== "function" || !isBuildingChar(ch)) return false;
+
+  const meta = (typeof hubBuildingMetaByChar === "object" && hubBuildingMetaByChar)
+    ? hubBuildingMetaByChar[ch]
+    : null;
+
+  if (!meta) return false;
+
+  if (meta.id === "gas") return !!(seg && seg.hasGasStation);
+  if (meta.id === "food") return !!(seg && seg.hasDiner);
+  if (meta.id === "hotel") return !!(seg && seg.hasMotel);
+
+  // пассивные/прочие здания разрешаем всегда
+  return true;
+}
+
+function _sanitizeRoadRow(row, seg) {
+  const norm = _normRow16(row);
+  if (!norm) return ".".repeat(16);
+
+  let res = "";
+  for (const ch of norm) {
+    if (typeof isBuildingChar === "function" && isBuildingChar(ch)) {
+      res += _isRoadBuildingAllowed(ch, seg) ? ch : ".";
+    } else {
+      res += ch;
+    }
+  }
+
+  return res;
+}
+
+function _buildSegmentRows(seg, segIndex) {
+  const dist = Math.max(1, Math.floor(seg?.distance || 1));
+  const tpl = (typeof getRoadSegmentTemplateByIndex === "function")
+    ? getRoadSegmentTemplateByIndex(segIndex)
+    : null;
+
+  let grid = (tpl && Array.isArray(tpl.grid) && tpl.grid.length)
+    ? tpl.grid.map((row) => _sanitizeRoadRow(row, seg))
+    : ["......####......".slice(0, 16)];
+
+  const segRows = [];
+
+  // если grid == dist — идеально
+  if (grid.length === dist) {
+    for (let r = 0; r < dist; r++) segRows.push(grid[r]);
+    return segRows;
+  }
+
+  // иначе — циклим до dist
+  for (let r = 0; r < dist; r++) {
+    segRows.push(grid[r % grid.length]);
+  }
+
+  return segRows;
+}
+
 /**
  * buildRoadWorldRows:
  * - количество строк сегмента === distance сегмента
@@ -23,26 +82,8 @@ function buildRoadWorldRows(routeSegments) {
   const segs = Array.isArray(routeSegments) ? routeSegments : [];
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i] || {};
-    const dist = Math.max(1, Math.floor(seg.distance || 1));
-
-    const tpl = (typeof getRoadSegmentTemplateByIndex === "function")
-      ? getRoadSegmentTemplateByIndex(i)
-      : null;
-
-    let grid = (tpl && Array.isArray(tpl.grid) && tpl.grid.length)
-      ? tpl.grid.map(_normRow16)
-      : ["......####......".slice(0, 16)];
-
-    // если grid == dist — идеально
-    if (grid.length === dist) {
-      for (let r = 0; r < dist; r++) out.push(grid[r]);
-      continue;
-    }
-
-    // иначе — циклим до dist
-    for (let r = 0; r < dist; r++) {
-      out.push(grid[r % grid.length]);
-    }
+    const segRows = _buildSegmentRows(seg, i);
+    for (const r of segRows) out.push(r);
   }
 
   return out;
@@ -53,6 +94,15 @@ function buildRoadWorldRows(routeSegments) {
  *  - NPC: примерно один на ~12 строк
  *  - Hitchhikers: рандомно по пути (минимум 2), но триггерятся ТОЛЬКО от зелёной зоны
  */
+function _sideDefaults(side) {
+  const s = side === "left" ? "left" : "right";
+  return {
+    side: s,
+    xNpc: s === "left" ? ROAD_LEFT_NPC_X : ROAD_RIGHT_NPC_X,
+    xZone: s === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X,
+  };
+}
+
 function buildRoadEntities(routeSegmentsOrTotalRows) {
   // Accept either totalRows (number) or routeSegments (array)
   const entities = [];
@@ -89,6 +139,8 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
         for (const def of tpl.entities) {
           const relRow = Math.max(0, Math.min((s.length || 1) - 1, Number(def.row || 0)));
           const worldRow = s.start + relRow;
+          const side = def.side === "left" ? "left" : (def.side === "right" ? "right" : (def.xZone <= ROAD_X0 ? "left" : "right"));
+          const sideDefaults = _sideDefaults(side);
           if (def.kind === "hitchhiker") {
             // try to resolve hitchhiker by id if provided
             let hh = null;
@@ -102,18 +154,22 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
               row: worldRow,
               triggered: false,
               hitchhiker: hh,
-              xNpc: (typeof def.xNpc === 'number') ? def.xNpc : ROAD_NPC_X,
-              xZone: (typeof def.xZone === 'number') ? def.xZone : ROAD_INTERACT_X,
+              side,
+              xNpc: (typeof def.xNpc === 'number') ? def.xNpc : sideDefaults.xNpc,
+              xZone: (typeof def.xZone === 'number') ? def.xZone : sideDefaults.xZone,
             });
             manualEntitiesAdded = true;
           } else if (def.kind === "npc") {
+            const npcSide = def.side === "left" ? "left" : (def.side === "right" ? "right" : (def.xZone <= ROAD_X0 ? "left" : "right"));
+            const npcDefaults = _sideDefaults(npcSide);
             entities.push({
               id: def.id || `road_npc_tpl_${si}_${relRow}`,
               kind: "npc",
               row: worldRow,
               triggered: false,
-              xNpc: (typeof def.xNpc === 'number') ? def.xNpc : ROAD_NPC_X,
-              xZone: (typeof def.xZone === 'number') ? def.xZone : ROAD_INTERACT_X,
+              side: npcSide,
+              xNpc: (typeof def.xNpc === 'number') ? def.xNpc : npcDefaults.xNpc,
+              xZone: (typeof def.xZone === 'number') ? def.xZone : npcDefaults.xZone,
             });
             manualEntitiesAdded = true;
           }
@@ -128,18 +184,24 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
     const npcCount = Math.max(0, Math.floor(totalRows / 12));
     for (let i = 0; i < npcCount; i++) {
       const row = Math.floor((i + 1) * (totalRows / (npcCount + 1)));
+      const side = i % 2 === 0 ? "right" : "left";
+      const sideDefaults = _sideDefaults(side);
       entities.push({
         id: `road_npc_${i}`,
         kind: "npc",
         row,
         triggered: false,
-        xNpc: ROAD_NPC_X,
-        xZone: ROAD_INTERACT_X,
+        side,
+        xNpc: sideDefaults.xNpc,
+        xZone: sideDefaults.xZone,
       });
     }
     const hhCount = Math.max(2, Math.floor(totalRows / 10));
     for (let i = 0; i < hhCount; i++) {
       const row = 2 + Math.floor(Math.random() * Math.max(1, totalRows - 4));
+
+      const side = i % 2 === 0 ? "right" : "left";
+      const sideDefaults = _sideDefaults(side);
 
       // determine segmentIndex for this row
       let segIndex = null;
@@ -162,8 +224,9 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
         row,
         triggered: false,
         hitchhiker: hh,
-        xNpc: ROAD_NPC_X,
-        xZone: ROAD_INTERACT_X,
+        side,
+        xNpc: sideDefaults.xNpc,
+        xZone: sideDefaults.xZone,
       });
     }
   }
@@ -192,7 +255,120 @@ function pickRandomHitchhiker() {
   };
 }
 
+function _getBuildingMeta(ch) {
+  const meta = (typeof hubBuildingMetaByChar === "object" && hubBuildingMetaByChar)
+    ? (hubBuildingMetaByChar[ch] || null)
+    : null;
+
+  if (meta) return meta;
+
+  return {
+    id: "building",
+    type: "passive",
+    label: "Здание",
+    hint: "",
+    spriteKey: "hubBuilding",
+    avatarKey: "default_building",
+  };
+}
+
+function _collectBuildingsFromSegment(segRows, worldOffsetRows, segIndex, seg) {
+  const buildings = [];
+  if (!Array.isArray(segRows) || !segRows.length) return buildings;
+
+  const rows = segRows.length;
+  const cols = ROAD_COLS;
+
+  /** @type {boolean[][]} */
+  const visited = Array.from({ length: rows }, () => Array.from({ length: cols }, () => false));
+
+  for (let y = 0; y < rows; y++) {
+    const rowStr = segRows[y] || "";
+    for (let x = 0; x < cols; x++) {
+      const ch = rowStr[x] || "";
+      if (!ch || typeof isBuildingChar !== "function" || !isBuildingChar(ch)) continue;
+      if (visited[y][x]) continue;
+
+      const meta = _getBuildingMeta(ch);
+      if (!_isRoadBuildingAllowed(ch, seg)) continue;
+
+      /** @type {Array<{x:number;y:number}>} */
+      const stack = [{ x, y }];
+      visited[y][x] = true;
+
+      let minX = x, maxX = x, minY = y, maxY = y;
+
+      while (stack.length) {
+        const cur = stack.pop();
+        if (!cur) break;
+
+        if (cur.x < minX) minX = cur.x;
+        if (cur.x > maxX) maxX = cur.x;
+        if (cur.y < minY) minY = cur.y;
+        if (cur.y > maxY) maxY = cur.y;
+
+        const neigh = [
+          { x: cur.x + 1, y: cur.y },
+          { x: cur.x - 1, y: cur.y },
+          { x: cur.x, y: cur.y + 1 },
+          { x: cur.x, y: cur.y - 1 }
+        ];
+
+        for (const n of neigh) {
+          if (n.x < 0 || n.x >= cols || n.y < 0 || n.y >= rows) continue;
+          if (visited[n.y][n.x]) continue;
+          const nc = (segRows[n.y] || "")[n.x] || "";
+          if (nc !== ch) continue;
+          visited[n.y][n.x] = true;
+          stack.push(n);
+        }
+      }
+
+      const worldY0 = worldOffsetRows + minY;
+      const worldY1 = worldOffsetRows + maxY;
+      const cx = (minX + maxX) / 2;
+      const side = cx < ROAD_X0 ? "left" : "right";
+      const zoneX = side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X;
+
+      buildings.push({
+        id: `${ch}_${segIndex}_${worldY0}_${worldY1}_${minX}_${maxX}`,
+        char: ch,
+        type: meta.type,
+        label: meta.label,
+        hint: meta.hint,
+        spriteKey: meta.spriteKey || "hubBuilding",
+        avatarKey: meta.avatarKey || null,
+        x0: minX,
+        y0: worldY0,
+        x1: maxX,
+        y1: worldY1,
+        side,
+        interactX: zoneX,
+      });
+    }
+  }
+
+  return buildings;
+}
+
+function buildRoadBuildings(routeSegments) {
+  const list = [];
+  const segs = Array.isArray(routeSegments) ? routeSegments : [];
+
+  let offset = 0;
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i] || {};
+    const segRows = _buildSegmentRows(seg, i);
+    const blds = _collectBuildingsFromSegment(segRows, offset, i, seg);
+    for (const b of blds) list.push(b);
+    offset += segRows.length;
+  }
+
+  return list;
+}
+
 if (typeof window !== "undefined") {
   window.buildRoadWorldRows = buildRoadWorldRows;
   window.buildRoadEntities = buildRoadEntities;
+  window.buildRoadBuildings = buildRoadBuildings;
 }

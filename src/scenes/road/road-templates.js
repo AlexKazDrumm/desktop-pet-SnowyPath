@@ -25,10 +25,29 @@ function _assert16(s) {
   return str + ".".repeat(16 - str.length);
 }
 
+function _applyBuildings(grid, buildings) {
+  const rows = grid.map((r) => (typeof r === "string" ? r.split("") : []));
+  for (const b of buildings || []) {
+    const x0 = Math.max(0, Math.floor(b.x0));
+    const y0 = Math.max(0, Math.floor(b.y0));
+    const x1 = Math.max(x0, Math.floor(b.x1));
+    const y1 = Math.max(y0, Math.floor(b.y1));
+    const ch = (b.char || "").slice(0, 1) || "";
+    if (!ch) continue;
+
+    for (let y = y0; y <= y1 && y < rows.length; y++) {
+      for (let x = x0; x <= x1 && x < 16; x++) {
+        if (Array.isArray(rows[y])) rows[y][x] = ch;
+      }
+    }
+  }
+  return rows.map((r) => _assert16(r.join("")));
+}
+
 /**
  * Segment 1 (distance 30): ровная дорога, снег по бокам
  */
-const SEG0_30 = [
+const SEG0_30 = _applyBuildings([
   "...ssss####ssss...",
   "...s..s####s..s...",
   "...s...####...s...",
@@ -63,12 +82,16 @@ const SEG0_30 = [
   "...s...####...s...",
   "...s..s####s..s...",
   "...ssss####ssss...",
-].map(_assert16);
+], [
+  { char: "G", x0: 12, y0: 4,  x1: 14, y1: 7 },
+  { char: "F", x0: 0,  y0: 14, x1: 2,  y1: 17 },
+  { char: "H", x0: 11, y0: 22, x1: 14, y1: 25 }
+]);
 
 /**
  * Segment 2 (distance 30): чуть “другой” рисунок обочины (разбивка сугробов)
  */
-const SEG1_30 = [
+const SEG1_30 = _applyBuildings([
   "..ssss..####..ssss",
   "..s..s..####..s..s",
   "..s.....####.....s",
@@ -103,7 +126,11 @@ const SEG1_30 = [
   "..s..s..####..s..s",
   "..s.....####.....s",
   "..ssss..####..ssss",
-].map(_assert16);
+], [
+  { char: "G", x0: 0,  y0: 5,  x1: 2,  y1: 8 },
+  { char: "F", x0: 13, y0: 12, x1: 15, y1: 15 },
+  { char: "H", x0: 1,  y0: 20, x1: 3,  y1: 23 }
+]);
 
 const ROAD_SEGMENT_TEMPLATES = [
   {
@@ -114,11 +141,11 @@ const ROAD_SEGMENT_TEMPLATES = [
     // manual entities: hitchhikers/npcs with `row` relative to segment (0..distance-1)
     entities: [
       // S1 (segmentIndex: 0) — все 5
-      { kind: "hitchhiker", row: 4,  hitchhikerId: "s1_h3", id: "tmpl_s1_h3", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 9,  hitchhikerId: "s1_h1", id: "tmpl_s1_h1", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 14, hitchhikerId: "s1_h2", id: "tmpl_s1_h2", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 19, hitchhikerId: "s1_h4", id: "tmpl_s1_h4", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 24, hitchhikerId: "s1_h5", id: "tmpl_s1_h5", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 4,  hitchhikerId: "s1_h3", id: "tmpl_s1_h3", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
+      { kind: "hitchhiker", row: 9,  hitchhikerId: "s1_h1", id: "tmpl_s1_h1", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 14, hitchhikerId: "s1_h2", id: "tmpl_s1_h2", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
+      { kind: "hitchhiker", row: 19, hitchhikerId: "s1_h4", id: "tmpl_s1_h4", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 24, hitchhikerId: "s1_h5", id: "tmpl_s1_h5", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
     ],
   },
   {
@@ -128,11 +155,11 @@ const ROAD_SEGMENT_TEMPLATES = [
     grid: SEG1_30,
     entities: [
       // S2 (segmentIndex: 1) — все 5
-      { kind: "hitchhiker", row: 3,  hitchhikerId: "s2_h1", id: "tmpl_s2_h1", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 8,  hitchhikerId: "s2_h2", id: "tmpl_s2_h2", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 13, hitchhikerId: "s2_h3", id: "tmpl_s2_h3", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 18, hitchhikerId: "s2_h4", id: "tmpl_s2_h4", xNpc: 10, xZone: 9 },
-      { kind: "hitchhiker", row: 23, hitchhikerId: "s2_h5", id: "tmpl_s2_h5", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 3,  hitchhikerId: "s2_h1", id: "tmpl_s2_h1", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 8,  hitchhikerId: "s2_h2", id: "tmpl_s2_h2", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
+      { kind: "hitchhiker", row: 13, hitchhikerId: "s2_h3", id: "tmpl_s2_h3", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 18, hitchhikerId: "s2_h4", id: "tmpl_s2_h4", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
+      { kind: "hitchhiker", row: 23, hitchhikerId: "s2_h5", id: "tmpl_s2_h5", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
     ],
   },
 ];
