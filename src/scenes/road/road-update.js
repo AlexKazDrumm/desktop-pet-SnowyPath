@@ -114,13 +114,14 @@ function updateRoad(dt) {
   const carCellX = Math.round(state.road.carX);
 
   const entities = Array.isArray(state.road.entities) ? state.road.entities : [];
+  const carWorldFloat = state.road.scroll + (viewRows - 1 - carScreenRow);
   for (const ent of entities) {
     if (!ent || ent.triggered) continue;
 
-    // триггер только если на строке сущности и в зоне x == ent.xZone
-    // используем proximity, чтобы не требовать точного попадания в целую ячейку
+    // trigger when the camera/car is near the entity's world-row and within X proximity
     const zoneX = (typeof ent.xZone === 'number') ? ent.xZone : ROAD_INTERACT_X;
-    if (ent.row === carWorldRow && Math.abs((state.road.carX || 0) - zoneX) < 0.6) {
+    const rowDist = Math.abs((ent.row || 0) - carWorldFloat);
+    if (rowDist < 0.9 && Math.abs((state.road.carX || 0) - zoneX) < 0.6) {
       ent.triggered = true;
 
       if (ent.kind === "hitchhiker") {

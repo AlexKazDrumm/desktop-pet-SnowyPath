@@ -106,8 +106,27 @@ const SEG1_30 = [
 ].map(_assert16);
 
 const ROAD_SEGMENT_TEMPLATES = [
-  { pointIndex: 0, themeKey: "hub0", distance: 30, grid: SEG0_30 },
-  { pointIndex: 1, themeKey: "hub1", distance: 30, grid: SEG1_30 }
+  {
+    pointIndex: 0,
+    themeKey: "hub0",
+    distance: 30,
+    grid: SEG0_30,
+    // manual entities: hitchhikers/npcs with `row` relative to segment (0..distance-1)
+    entities: [
+      { kind: "hitchhiker", row: 4, hitchhikerId: "s1_h3", id: "tmpl_s1_h3", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 18, hitchhikerId: "s1_h1", id: "tmpl_s1_h1", xNpc: 10, xZone: 9 }
+    ]
+  },
+  {
+    pointIndex: 1,
+    themeKey: "hub1",
+    distance: 30,
+    grid: SEG1_30,
+    entities: [
+      { kind: "hitchhiker", row: 10, hitchhikerId: "s2_h1", id: "tmpl_s2_h1", xNpc: 10, xZone: 9 },
+      { kind: "hitchhiker", row: 22, hitchhikerId: "s2_h4", id: "tmpl_s2_h4", xNpc: 10, xZone: 9 }
+    ]
+  }
 ];
 
 function getRoadSegmentTemplateByIndex(segIndex) {

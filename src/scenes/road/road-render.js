@@ -86,6 +86,31 @@ function _drawSpriteInCell(ctx, img, r, padFrac) {
   ctx.drawImage(img, r.x + pad, r.y + pad, w, h);
 }
 
+function _drawHitchhikerSpriteInCell(ctx, img, r, padFrac, shiftFrac) {
+  // pad and size like normal sprite
+  const pad = Math.floor(r.w * (padFrac || 0.10));
+  const w = Math.max(1, r.w - pad * 2);
+  const h = Math.max(1, r.h - pad * 2);
+
+  // shift closer to the road: positive shiftFrac moves left (towards road), in fraction of cell width
+  const shiftPx = Math.floor((shiftFrac || 0.20) * r.w);
+
+  // we need to flip horizontally because source images face right by default
+  const dx = r.x + pad - shiftPx;
+  const dy = r.y + pad;
+  const dw = w;
+  const dh = h;
+
+  const cx = dx + dw / 2;
+  const cy = dy + dh / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(-1, 1);
+  ctx.translate(-cx, -cy);
+  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.restore();
+}
+
 function _drawInteractZone(ctx, zr, strong) {
   // основная заливка
   ctx.fillStyle = strong ? "rgba(34,197,94,0.65)" : "rgba(34,197,94,0.40)";
@@ -246,8 +271,9 @@ function renderRoadScene() {
 
     const sy = worldBottomRow - row;
 
-    // персонаж на обочине справа (x=ROAD_NPC_X)
-    const xr = _roadCellRect(layout, ROAD_NPC_X, sy);
+    // персонаж на обочине: используем позицию из сущности (`xNpc`) или дефолт
+    const npcX = (typeof ent.xNpc === 'number') ? ent.xNpc : ROAD_NPC_X;
+    const xr = _roadCellRect(layout, npcX, sy);
 
     // draw sprite (smaller, same visual scale as hub characters)
     const spr = ent.kind === "hitchhiker" ? _getHitchhikerSprite(ent) : _getNpcSprite();
@@ -256,7 +282,12 @@ function renderRoadScene() {
     const spriteH = Math.max(1, xr.h - pad * 2);
 
     if (spr) {
-      _drawSpriteInCell(ctx, spr, xr, padFrac);
+      if (ent.kind === "hitchhiker") {
+        // draw hitchhikers flipped and nudged closer to the road
+        _drawHitchhikerSpriteInCell(ctx, spr, xr, padFrac, 0.20);
+      } else {
+        _drawSpriteInCell(ctx, spr, xr, padFrac);
+      }
     } else {
       ctx.fillStyle = ent.kind === "npc" ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.75)";
       const pad2 = Math.floor(xr.w * 0.2);
@@ -265,14 +296,15 @@ function renderRoadScene() {
 
     // зелёная интеракт-зона — расположена у левого края спрайта попутчика,
     // более узкая и прижата к его левой стороне (визуально смежна к NPC).
-    const zrFull = _roadCellRect(layout, ROAD_INTERACT_X, sy);
+    const zoneX = (typeof ent.xZone === 'number') ? ent.xZone : ROAD_INTERACT_X;
+    const zrFull = _roadCellRect(layout, zoneX, sy);
     // make interact zone narrower (approx 28% width) and align it to the right edge
     // of the road cell so it visually hugs the hitchhiker on the left side.
     const zrW = Math.max(1, Math.floor(zrFull.w * 0.28));
     const zrX = zrFull.x + zrFull.w - zrW - 2;
     const zr = { x: zrX, y: xr.y + pad, w: zrW, h: spriteH };
     // strong when the car is actually touching the entity interaction column
-    const strong = (Array.isArray(state.road.entities) && Array.isArray(state.road.entities) ? Math.abs((state.road.carX || 0) - (ent.xZone || ROAD_INTERACT_X)) < 0.6 : false) && carWorldRow === row;
+    const strong = Math.abs((state.road.carX || 0) - (zoneX)) < 0.6 && carWorldRow === row;
 
     // draw interact zone (thinner)
     ctx.fillStyle = strong ? "rgba(34,197,94,0.65)" : "rgba(34,197,94,0.40)";
@@ -287,14 +319,8 @@ function renderRoadScene() {
     ctx.fillRect(xr.x + 2, xr.y + 2, tag, tag);
 
     // collision check: determine actual canvas Y of the interact zone (entities were drawn with vertical translate)
+    // collision handling is performed in updateRoad() so rendering stays purely visual
     const zrCanvas = { x: zr.x, y: zr.y + scrollFrac * layout.cellH, w: zr.w, h: zr.h };
-    if (ent.kind === "hitchhiker" && !ent.triggered) {
-      const intersect = !(carRect.x + carRect.w <= zrCanvas.x || zrCanvas.x + zrCanvas.w <= carRect.x || carRect.y + carRect.h <= zrCanvas.y || zrCanvas.y + zrCanvas.h <= carRect.y);
-      if (intersect) {
-        ent.triggered = true;
-        try { triggerHitchhikerEvent(ent.hitchhiker); } catch (e) { console.error(e); }
-      }
-    }
   }
   ctx.restore();
 

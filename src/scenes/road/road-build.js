@@ -91,37 +91,80 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
     });
   }
 
-  // Hitchhikers: pick per-segment where possible
-  const hhCount = Math.max(2, Math.floor(totalRows / 10));
-  for (let i = 0; i < hhCount; i++) {
-    const row = 2 + Math.floor(Math.random() * Math.max(1, totalRows - 4));
-
-    // determine segmentIndex for this row
-    let segIndex = null;
-    if (segOffsets && segOffsets.length) {
-      for (let si = 0; si < segOffsets.length; si++) {
-        const s = segOffsets[si];
-        if (row >= s.start && row < s.start + s.length) {
-          segIndex = si + (typeof routeSegments[0]?.pointIndex === 'number' ? routeSegments[0].pointIndex : 0);
-          // segIndex should correspond to global segments index relative to start point
-          // but if routeSegments do not include global index, fallback to si
-          if (typeof routeSegments[si]?.pointIndex === 'number') segIndex = routeSegments[si].pointIndex;
-          break;
+  // Manual entities from road templates (if provided) — prefer these over random hitchhiker placement
+  let manualEntitiesAdded = false;
+  if (segOffsets && segOffsets.length) {
+    for (let si = 0; si < segOffsets.length; si++) {
+      const s = segOffsets[si];
+      const tpl = (typeof getRoadSegmentTemplateByIndex === "function") ? getRoadSegmentTemplateByIndex(si) : null;
+      if (tpl && Array.isArray(tpl.entities) && tpl.entities.length) {
+        for (const def of tpl.entities) {
+          const relRow = Math.max(0, Math.min((s.length || 1) - 1, Number(def.row || 0)));
+          const worldRow = s.start + relRow;
+          if (def.kind === "hitchhiker") {
+            // try to resolve hitchhiker by id if provided
+            let hh = null;
+            if (def.hitchhikerId && typeof hitchhikers !== "undefined" && Array.isArray(hitchhikers)) {
+              hh = hitchhikers.find((h) => h.id === def.hitchhikerId) || null;
+            }
+            if (!hh) hh = pickRandomHitchhiker(def.segmentIndex ?? si);
+            entities.push({
+              id: def.id || `road_hh_tpl_${si}_${relRow}`,
+              kind: "hitchhiker",
+              row: worldRow,
+              triggered: false,
+              hitchhiker: hh,
+              xNpc: (typeof def.xNpc === 'number') ? def.xNpc : ROAD_NPC_X,
+              xZone: (typeof def.xZone === 'number') ? def.xZone : ROAD_INTERACT_X,
+            });
+            manualEntitiesAdded = true;
+          } else if (def.kind === "npc") {
+            entities.push({
+              id: def.id || `road_npc_tpl_${si}_${relRow}`,
+              kind: "npc",
+              row: worldRow,
+              triggered: false,
+              xNpc: (typeof def.xNpc === 'number') ? def.xNpc : ROAD_NPC_X,
+              xZone: (typeof def.xZone === 'number') ? def.xZone : ROAD_INTERACT_X,
+            });
+            manualEntitiesAdded = true;
+          }
         }
       }
     }
+  }
 
-    const hh = pickRandomHitchhiker(segIndex);
+  // Hitchhikers: if templates didn't supply manual entities, fallback to random placement
+  if (!manualEntitiesAdded) {
+    const hhCount = Math.max(2, Math.floor(totalRows / 10));
+    for (let i = 0; i < hhCount; i++) {
+      const row = 2 + Math.floor(Math.random() * Math.max(1, totalRows - 4));
 
-    entities.push({
-      id: `road_hh_${i}`,
-      kind: "hitchhiker",
-      row,
-      triggered: false,
-      hitchhiker: hh,
-      xNpc: ROAD_NPC_X,
-      xZone: ROAD_INTERACT_X,
-    });
+      // determine segmentIndex for this row
+      let segIndex = null;
+      if (segOffsets && segOffsets.length) {
+        for (let si = 0; si < segOffsets.length; si++) {
+          const s = segOffsets[si];
+          if (row >= s.start && row < s.start + s.length) {
+            segIndex = si + (typeof routeSegments[0]?.pointIndex === 'number' ? routeSegments[0].pointIndex : 0);
+            if (typeof routeSegments[si]?.pointIndex === 'number') segIndex = routeSegments[si].pointIndex;
+            break;
+          }
+        }
+      }
+
+      const hh = pickRandomHitchhiker(segIndex);
+
+      entities.push({
+        id: `road_hh_${i}`,
+        kind: "hitchhiker",
+        row,
+        triggered: false,
+        hitchhiker: hh,
+        xNpc: ROAD_NPC_X,
+        xZone: ROAD_INTERACT_X,
+      });
+    }
   }
 
   entities.sort((a, b) => a.row - b.row);
