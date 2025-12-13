@@ -242,7 +242,20 @@
   <script src="src/core/game-canvas.js"></script>
 
   <!-- Scenes -->
+  <!-- stop scene modules (must be BEFORE scene-stop.js) -->
+  <script src="src/scenes/stop/stop-geometry.js"></script>
+  <script src="src/scenes/stop/stop-parse.js"></script>
+  <script src="src/scenes/stop/stop-entities.js"></script>
+  <script src="src/scenes/stop/stop-dialog-vn.js"></script>
+  <script src="src/scenes/stop/stop-dialog-wiring.js"></script>
+  <script src="src/scenes/stop/stop-ui.js"></script>
+  <script src="src/scenes/stop/stop-interactions.js"></script>
+  <script src="src/scenes/stop/stop-render.js"></script>
+  <script src="src/scenes/stop/stop-resize.js"></script>
+
+  <!-- Orchestrator -->
   <script src="src/scenes/scene-stop.js"></script>
+
   <script src="src/scenes/scene-map.js"></script>
   <script src="src/scenes/scene-road.js"></script>
   <script src="src/core/screens-core.js"></script>
