@@ -133,7 +133,7 @@ function updateRoad(dt) {
 
     const overlapsX = (carRight > zoneStart) && (carLeft < zoneEnd);
 
-    if (rowDist < 0.5 && overlapsX) {
+    if (rowDist < 1.3 && overlapsX) {
       if (ent.kind === "hitchhiker") {
         // keep drawing the hitchhiker until player chooses; mark pending
         ent._pending = true;
