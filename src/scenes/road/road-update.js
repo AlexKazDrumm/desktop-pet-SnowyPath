@@ -6,6 +6,7 @@ function _clamp(v, a, b) {
 
 function updateRoad(dt) {
   if (!state || state.mode !== "road") return;
+
   if (!state.road || !state.road.active) {
     if (typeof renderRoadScene === "function") renderRoadScene();
     return;
@@ -17,16 +18,46 @@ function updateRoad(dt) {
     return;
   }
 
-  // ===== рулёжка: плавно (вектор по X), без телепорта =====
+  // ===== ИНИТ =====
+  if (typeof state.road.carX !== "number") state.road.carX = 8.5;
+
+  // угол руления (радианы): 0 = прямо; отриц = влево; полож = вправо
+  if (typeof state.road.carAngle !== "number") state.road.carAngle = 0;
+
+  // скорости
+  const forwardSpeed = 1.0; // тайл/сек по "пути" (скролл)
+  const maxAngle = Math.PI * 0.28; // ~50°: назад не даём, но вбок достаточно
+  const steerSpeed = Math.PI * 1.10; // рад/сек, как быстро крутится руль
+  const autoCenter = Math.PI * 0.85; // рад/сек, возврат руля к 0 когда не жмём
+
+  // ===== INPUT =====
   const left = keysPressed["KeyA"] || keysPressed["ArrowLeft"];
   const right = keysPressed["KeyD"] || keysPressed["ArrowRight"];
 
-  const turnSpeed = 4.0; // тайлов/сек по X
-  let vx = 0;
-  if (left) vx -= turnSpeed;
-  if (right) vx += turnSpeed;
+  // ===== РУЛЁЖКА (угол) =====
+  if (left && !right) {
+    state.road.carAngle -= steerSpeed * dt;
+  } else if (right && !left) {
+    state.road.carAngle += steerSpeed * dt;
+  } else {
+    // авто-центровка
+    if (state.road.carAngle > 0) {
+      state.road.carAngle = Math.max(0, state.road.carAngle - autoCenter * dt);
+    } else if (state.road.carAngle < 0) {
+      state.road.carAngle = Math.min(0, state.road.carAngle + autoCenter * dt);
+    }
+  }
 
-  if (typeof state.road.carX !== "number") state.road.carX = 8.5;
+  // ограничение — назад “нельзя” (мы просто не позволяем углу стать слишком большим)
+  state.road.carAngle = _clamp(state.road.carAngle, -maxAngle, maxAngle);
+
+  // ===== БОКОВОЕ СМЕЩЕНИЕ (диагональ) =====
+  // Идея: движение — это вектор скорости, повернутый на угол руля.
+  // Компоненты: vx = forward * sin(angle), vy = forward * cos(angle)
+  const driftMultiplier = 1.0; // 1.0 — соответствие углу
+  const angle = state.road.carAngle || 0;
+  const vx = Math.sin(angle) * forwardSpeed * driftMultiplier; // боковая скорость (ячейки/сек)
+  const vy = Math.cos(angle) * forwardSpeed; // продольная скорость (ячейки/сек)
 
   const prevX = state.road.carX;
   state.road.carX += vx * dt;
@@ -34,15 +65,28 @@ function updateRoad(dt) {
   // коллизия: с дороги съезжать нельзя (дорога x=6..9)
   state.road.carX = _clamp(state.road.carX, ROAD_X0, ROAD_X1);
 
-  if (prevX !== state.road.carX && (prevX < ROAD_X0 || prevX > ROAD_X1)) {
-    state.lastMessage = "Съезжать с дороги нельзя.";
+  // если упёрлись в край — сообщаем (но не спамим каждый кадр)
+  if (prevX !== state.road.carX) {
+    const hitLeft = state.road.carX === ROAD_X0 && vx < 0;
+    const hitRight = state.road.carX === ROAD_X1 && vx > 0;
+    if (hitLeft || hitRight) {
+      if (!state.road._edgeMsgCooldown || state.road._edgeMsgCooldown <= 0) {
+        state.lastMessage = "Съезжать с дороги нельзя.";
+        state.road._edgeMsgCooldown = 0.7;
+      }
+    }
+  }
+  if (typeof state.road._edgeMsgCooldown === "number") {
+    state.road._edgeMsgCooldown = Math.max(0, state.road._edgeMsgCooldown - dt);
   }
 
-  // ===== движение вперёд: 1 тайл/сек (скролл) =====
+  // ===== ДВИЖЕНИЕ ВПЕРЁД: скролл =====
   if (typeof state.road.scroll !== "number") state.road.scroll = 0;
   if (typeof state.road._scrollAcc !== "number") state.road._scrollAcc = 0;
 
-  state.road._scrollAcc += dt * 1.0; // 1 тайл/сек
+  // используем продольную компоненту скорости (vy), чтобы если руль повернут —
+  // прогресс по дороге уменьшался согласно косинусу угла
+  state.road._scrollAcc += dt * vy;
 
   while (state.road._scrollAcc >= 1.0) {
     state.road._scrollAcc -= 1.0;
@@ -66,7 +110,7 @@ function updateRoad(dt) {
     }
   }
 
-  // ===== интеракт: только если въехали в зелёную зону =====
+  // ===== ИНТЕРАКТ: только если въехали в зелёную зону =====
   const worldTopRow = Math.floor(state.road.scroll);
   const carScreenRow = (typeof state.road.carScreenRow === "number") ? state.road.carScreenRow : 4;
   const carWorldRow = worldTopRow + carScreenRow;
@@ -77,7 +121,8 @@ function updateRoad(dt) {
     if (!ent || ent.triggered) continue;
 
     // триггер только если на строке сущности и в зоне x=ROAD_INTERACT_X
-    if (ent.row === carWorldRow && carCellX === ROAD_INTERACT_X) {
+    // используем proximity, чтобы не требовать точного попадания в целую ячейку
+    if (ent.row === carWorldRow && Math.abs((state.road.carX || 0) - ROAD_INTERACT_X) < 0.6) {
       ent.triggered = true;
 
       if (ent.kind === "hitchhiker") {

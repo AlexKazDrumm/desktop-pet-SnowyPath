@@ -61,6 +61,8 @@ function buildRoadEntities(totalRows) {
       kind: "npc",
       row,
       triggered: false,
+      xNpc: ROAD_NPC_X,
+      xZone: ROAD_INTERACT_X,
     });
   }
 
@@ -74,6 +76,8 @@ function buildRoadEntities(totalRows) {
       row,
       triggered: false,
       hitchhiker: pickRandomHitchhiker(),
+      xNpc: ROAD_NPC_X,
+      xZone: ROAD_INTERACT_X,
     });
   }
 
@@ -86,12 +90,13 @@ function pickRandomHitchhiker() {
     return hitchhikers[Math.floor(Math.random() * hitchhikers.length)];
   }
   return {
+    id: "fallback_hh",
     name: "Автостопщик",
     description: "Просит подвезти.",
     basePay: 10,
     minPay: 5,
     maxPay: 20,
-    dangerLevel: "normal",
+    dangerLevel: "none",
   };
 }
 
