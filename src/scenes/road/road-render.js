@@ -153,13 +153,13 @@ function renderRoadScene() {
   // фон
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, h);
-
-  if (!state.road || !state.road.active) {
-    ctx.fillStyle = "#fff";
-    ctx.font = `${Math.floor(Math.min(w, h) * 0.03)}px monospace`;
-    ctx.fillText("ROAD", 20, 40);
-    return;
-  }
+  try {
+    if (!state.road || !state.road.active) {
+      ctx.fillStyle = "#fff";
+      ctx.font = `${Math.floor(Math.min(w, h) * 0.03)}px monospace`;
+      ctx.fillText("ROAD", 20, 40);
+      return;
+    }
 
   const layout = computeRoadStageLayout();
   _clearRoadHudRegions();
@@ -177,6 +177,14 @@ function renderRoadScene() {
   // allow drawing one extra row above to enable smooth partial reveal
   const worldTopRow = Math.max(0, scrollInt);
   const worldBottomRow = worldTopRow + viewRows; // inclusive (we draw sy = -1..viewRows-1)
+  // precompute car rect (canvas coords) for collision checks
+  const cxF = (typeof state.road.carX === "number") ? state.road.carX : ROAD_X1;
+  const carRect = {
+    x: layout.x0 + Math.floor(cxF * layout.cellW),
+    y: layout.y0 + carScreenRow * layout.cellH,
+    w: layout.cellW,
+    h: layout.cellH,
+  };
 
   // ===== draw tiles (16x6) =====
   // apply fractional vertical offset for smooth sliding (no rounding)
@@ -255,39 +263,43 @@ function renderRoadScene() {
       ctx.fillRect(xr.x + pad2, xr.y + pad2, xr.w - pad2 * 2, xr.h - pad2 * 2);
     }
 
-    // зелёная интеракт-зона — на дороге у правого края (x=ROAD_INTERACT_X)
-    // make it same height as the sprite and use thinner border like in hub
+    // зелёная интеракт-зона — расположена у левого края спрайта попутчика,
+    // более узкая и прижата к его левой стороне (визуально смежна к NPC).
     const zrFull = _roadCellRect(layout, ROAD_INTERACT_X, sy);
-    // make interact zone narrower (half width) and center it in the cell
-    const zrW = Math.max(1, Math.floor(zrFull.w / 2));
-    const zrX = zrFull.x + Math.floor((zrFull.w - zrW) / 2);
+    // make interact zone narrower (approx 28% width) and align it to the right edge
+    // of the road cell so it visually hugs the hitchhiker on the left side.
+    const zrW = Math.max(1, Math.floor(zrFull.w * 0.28));
+    const zrX = zrFull.x + zrFull.w - zrW - 2;
     const zr = { x: zrX, y: xr.y + pad, w: zrW, h: spriteH };
-    const strong = (Math.abs((state.road.carX || 0) - ROAD_INTERACT_X) < 0.6 && carWorldRow === row);
+    // strong when the car is actually touching the entity interaction column
+    const strong = (Array.isArray(state.road.entities) && Array.isArray(state.road.entities) ? Math.abs((state.road.carX || 0) - (ent.xZone || ROAD_INTERACT_X)) < 0.6 : false) && carWorldRow === row;
 
-    // custom thinner draw
+    // draw interact zone (thinner)
     ctx.fillStyle = strong ? "rgba(34,197,94,0.65)" : "rgba(34,197,94,0.40)";
     ctx.fillRect(zr.x, zr.y, zr.w, zr.h);
     ctx.strokeStyle = strong ? "rgba(34,197,94,0.95)" : "rgba(34,197,94,0.75)";
-    ctx.lineWidth = Math.max(1, Math.floor(Math.min(zr.w, zr.h) * 0.03));
+    ctx.lineWidth = Math.max(1, Math.floor(Math.min(zr.w, zr.h) * 0.06));
     ctx.strokeRect(zr.x + ctx.lineWidth * 0.5, zr.y + ctx.lineWidth * 0.5, zr.w - ctx.lineWidth, zr.h - ctx.lineWidth);
 
     // маленькая метка типа (чтобы визуально отличались)
     ctx.fillStyle = ent.kind === "npc" ? "rgba(255,215,0,0.95)" : "rgba(34,197,94,0.95)";
     const tag = Math.max(2, Math.floor(xr.w * 0.14));
     ctx.fillRect(xr.x + 2, xr.y + 2, tag, tag);
+
+    // collision check: determine actual canvas Y of the interact zone (entities were drawn with vertical translate)
+    const zrCanvas = { x: zr.x, y: zr.y + scrollFrac * layout.cellH, w: zr.w, h: zr.h };
+    if (ent.kind === "hitchhiker" && !ent.triggered) {
+      const intersect = !(carRect.x + carRect.w <= zrCanvas.x || zrCanvas.x + zrCanvas.w <= carRect.x || carRect.y + carRect.h <= zrCanvas.y || zrCanvas.y + zrCanvas.h <= carRect.y);
+      if (intersect) {
+        ent.triggered = true;
+        try { triggerHitchhikerEvent(ent.hitchhiker); } catch (e) { console.error(e); }
+      }
+    }
   }
   ctx.restore();
 
   // ===== car ===== (рисуем без scroll-translate, машина стоит на месте)
-  const carSy = carScreenRow;
-  // draw car with fractional X (prevents visual "teleport" when rounding)
-  const cxF = (typeof state.road.carX === "number") ? state.road.carX : ROAD_X1;
-  const carRect = {
-    x: layout.x0 + Math.floor(cxF * layout.cellW),
-    y: layout.y0 + carSy * layout.cellH,
-    w: layout.cellW,
-    h: layout.cellH,
-  };
+  // `carRect` уже был предварительно рассчитан выше; используем его.
 
   // угол поворота (радианы), небольшой
   const carAngle = (typeof state.road.carAngle === "number") ? state.road.carAngle : 0;
@@ -310,19 +322,37 @@ function renderRoadScene() {
 
   // prepare stop-like HUD state from road state
   try {
-    // interact avatar: use first nearby hitchhiker if any
-    const nearby = (Array.isArray(state.road.entities) ? state.road.entities.find((e) => e && !e.triggered && Math.abs(e.row - (worldTopRow + viewRows - 1 - carScreenRow)) <= 1) : null);
-    if (nearby) {
-      const spr = nearby.kind === "hitchhiker" ? _getHitchhikerSprite(nearby) : _getNpcSprite();
-      window.stopHudState = window.stopHudState || {};
+    // interact avatar: prefer currently active hitchhiker event, otherwise find nearby entity
+    window.stopHudState = window.stopHudState || {};
+    if (state.currentHitchhiker) {
+      const hh = state.currentHitchhiker;
+      const spr = _getHitchhikerSprite({ hitchhiker: hh });
       window.stopHudState.interactAvatar = spr && spr.src ? { kind: "npc", src: spr.src } : { kind: "prop", src: getDefaultAvatarSrc("prop") };
-      window.stopHudState.interactTitle = nearby.label || "Пассажир";
-      window.stopHudState.interactHint = nearby.hint || "";
+      window.stopHudState.interactTitle = hh.name || "Пассажир";
+      window.stopHudState.interactHint = hh.description || "";
     } else {
-      window.stopHudState = window.stopHudState || {};
-      window.stopHudState.interactAvatar = { kind: "prop", src: getDefaultAvatarSrc("prop") };
-      window.stopHudState.interactTitle = "";
-      window.stopHudState.interactHint = "";
+      const nearby = (Array.isArray(state.road.entities) ? state.road.entities.find((e) => {
+        if (!e || e.triggered) return false;
+        const eRow = Number(e.row || -999);
+        if (eRow !== carWorldRow) return false;
+        const zoneX = (typeof e.xZone === 'number') ? e.xZone : ROAD_INTERACT_X;
+        return Math.abs((state.road.carX || 0) - zoneX) < 0.6;
+      }) : null);
+      if (nearby) {
+        const spr = nearby.kind === "hitchhiker" ? _getHitchhikerSprite(nearby) : _getNpcSprite();
+        window.stopHudState.interactAvatar = spr && spr.src ? { kind: "npc", src: spr.src } : { kind: "prop", src: getDefaultAvatarSrc("prop") };
+        if (nearby.hitchhiker) {
+          window.stopHudState.interactTitle = nearby.hitchhiker.name || "Пассажир";
+          window.stopHudState.interactHint = nearby.hitchhiker.description || "";
+        } else {
+          window.stopHudState.interactTitle = nearby.label || "Пассажир";
+          window.stopHudState.interactHint = nearby.hint || "";
+        }
+      } else {
+        window.stopHudState.interactAvatar = { kind: "prop", src: getDefaultAvatarSrc("prop") };
+        window.stopHudState.interactTitle = "";
+        window.stopHudState.interactHint = "";
+      }
     }
 
     // player avatar
@@ -563,33 +593,27 @@ function renderRoadScene() {
   if (state.road.dialog && state.road.dialog.open) {
     const d = state.road.dialog;
 
-    ctx.fillStyle = "rgba(0,0,0,0.65)";
-    ctx.fillRect(r0.x, r0.y, layout.gridW, layout.cellH * 2);
+    // hudRect covers the whole HUD area; use rBottomCenter for choice placement
+    const r0 = hudRect;
+    const r1 = rBottomCenter;
 
-    ctx.fillStyle = "#fff";
-    ctx.font = `${Math.floor(layout.cellH * 0.42)}px monospace`;
-    ctx.textBaseline = "top";
+    // Overlay backdrop and big centered text removed — HUD shows dialog info.
 
-    _drawText(ctx, d.text || "", r0.x + 8, r0.y + 6, layout.gridW - 16);
-
-    const choices = Array.isArray(d.choices) ? d.choices : [];
-    if (choices.length) {
-      ctx.font = `${Math.floor(layout.cellH * 0.36)}px monospace`;
-
-      for (let i = 0; i < Math.min(4, choices.length); i++) {
-        const c = choices[i];
-        const y = r1.y + 6 + i * Math.floor(layout.cellH * 0.45);
-
-        _pushRoadHudRegion("road_choice", r1.x, y - 2, layout.gridW, Math.floor(layout.cellH * 0.45), { index: i });
-
-        _drawText(ctx, `${i + 1}) ${c.label || "..."}`, r1.x + 8, y, layout.gridW - 16);
-      }
-    } else {
-      _pushRoadHudRegion("road_next", r1.x, r1.y, layout.gridW, layout.cellH, null);
-      ctx.font = `${Math.floor(layout.cellH * 0.34)}px monospace`;
-      _drawText(ctx, "ENTER — продолжить", r1.x + 8, r1.y + 6, layout.gridW - 16);
-    }
+    // Don't render choice buttons as numbered overlay here.
+    // Choice buttons are rendered in the HUD area above (stop-like HUD),
+    // so we only show the dialog text overlay to avoid duplicate/conflicting UI.
   }
+  } catch (e) {
+    console.error("renderRoadScene error:", e);
+    try {
+      ctx.fillStyle = "#600";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#fff";
+      ctx.font = `20px monospace`;
+      ctx.fillText("Ошибка рендера. См. консоль.", 12, 28);
+    } catch (e2) { /* ignore */ }
+  }
+
 }
 
 if (typeof window !== "undefined") {

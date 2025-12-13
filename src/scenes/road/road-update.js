@@ -117,19 +117,17 @@ function updateRoad(dt) {
   for (const ent of entities) {
     if (!ent || ent.triggered) continue;
 
-    // триггер только если на строке сущности и в зоне x=ROAD_INTERACT_X
+    // триггер только если на строке сущности и в зоне x == ent.xZone
     // используем proximity, чтобы не требовать точного попадания в целую ячейку
-    if (ent.row === carWorldRow && Math.abs((state.road.carX || 0) - ROAD_INTERACT_X) < 0.6) {
+    const zoneX = (typeof ent.xZone === 'number') ? ent.xZone : ROAD_INTERACT_X;
+    if (ent.row === carWorldRow && Math.abs((state.road.carX || 0) - zoneX) < 0.6) {
       ent.triggered = true;
 
       if (ent.kind === "hitchhiker") {
         triggerHitchhikerEvent(ent.hitchhiker);
       } else {
-        // npc
-        roadDialogOpen(
-          ["NPC", "Вы остановились у человека на обочине."],
-          [{ id: "ok", label: "Ок", onPick: () => roadDialogClose() }]
-        );
+        // npc: don't open a blocking dialog in road view; just mark triggered
+        ent.triggered = true;
       }
 
       break;
