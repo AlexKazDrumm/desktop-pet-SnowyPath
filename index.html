@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Roadtrip MVP</title>
 
   <!-- Общие стили и компоненты -->
@@ -15,13 +16,11 @@
   <link rel="stylesheet" href="styles/screen-road.css" />
   <link rel="stylesheet" href="styles/screen-end.css" />
 </head>
+
 <body>
   <div id="app">
-    <!-- Верхняя панель теперь только со статистикой, без названия игры -->
     <header class="top-bar">
-      <div class="stats" id="statsBar">
-        <!-- динамически -->
-      </div>
+      <div class="stats" id="statsBar"></div>
     </header>
 
     <main id="screenContainer">
@@ -34,6 +33,7 @@
 
         <div class="character-select">
           <h3>Выберите персонажа</h3>
+
           <div class="character-cards" id="characterCards">
             <button
               id="character-card-tourist"
@@ -99,6 +99,7 @@
 
         <div class="card big-card">
           <h3>Как играть</h3>
+
           <p>На остановках:</p>
           <ul>
             <li>WASD / стрелки — ходьба по хабу</li>
@@ -106,42 +107,40 @@
             <li>M — открыть карту маршрута</li>
             <li>I — открыть/закрыть инвентарь (в хабе)</li>
           </ul>
+
           <p>На карте:</p>
           <ul>
             <li>Клик по достижимой точке — выбор</li>
             <li>Кнопка «Поехать к выбранной точке» — старт сегмента</li>
           </ul>
+
           <p>На дороге:</p>
           <ul>
             <li>A/D или стрелки влево/вправо — смещение по полосе</li>
             <li>События автостопщиков появляются по пути</li>
           </ul>
         </div>
-        <button id="btnMenuStart" class="primary">Начать поездку</button>
+
+        <button id="btnMenuStart" class="primary" type="button">Начать поездку</button>
       </section>
 
-      <!-- STOP / HUB SCREEN: полноэкранный -->
+      <!-- STOP / HUB SCREEN -->
       <section id="screen-stop" class="screen screen-stop hidden">
         <canvas id="stopCanvas"></canvas>
 
-        <!-- HUD BAR (fixed height) -->
         <div class="stop-bottom-bar">
-          <!-- HUD GRID: 2 rows x 16 cols -->
           <div class="stop-hud-grid">
-            <!-- cols 1-2, rows 1-2: interact avatar -->
             <div class="stop-hud-interact-avatar">
               <div class="hud-avatar-wrap">
                 <img id="stopInteractAvatar" class="hud-avatar" alt="Объект" />
               </div>
             </div>
 
-            <!-- cols 3-4, rows 1-2: interact title + description -->
             <div class="stop-hud-interact-text">
               <div id="stopObjectTitle" class="stop-object-title"></div>
               <div id="stopHint" class="hint"></div>
             </div>
 
-            <!-- cols 5-12, row 1: dialog -->
             <div class="stop-hud-dialog">
               <div id="stopDialog" class="stop-dialog hidden">
                 <div id="stopDialogText" class="stop-dialog-text"></div>
@@ -149,19 +148,13 @@
               </div>
             </div>
 
-            <!-- cols 5-12, row 2: inventory (top) + controls (bottom) -->
             <div class="stop-hud-center-bottom">
               <div id="inventoryWrapper" class="inventory-wrapper">
-                <button
-                  id="btnToggleInventory"
-                  class="inventory-toggle"
-                  type="button"
-                >
+                <button id="btnToggleInventory" class="inventory-toggle" type="button">
                   Инвентарь (I) ▾
                 </button>
-                <div id="inventoryPanel" class="inventory-panel">
-                  <!-- слоты инвентаря -->
-                </div>
+
+                <div id="inventoryPanel" class="inventory-panel"></div>
               </div>
 
               <div id="stopControls" class="stop-controls">
@@ -169,12 +162,10 @@
               </div>
             </div>
 
-            <!-- cols 13-14, rows 1-2: stats -->
             <div class="stop-hud-stats">
               <div id="stopStats" class="stop-stats"></div>
             </div>
 
-            <!-- cols 15-16, rows 1-2: player avatar -->
             <div class="stop-hud-player-avatar">
               <div class="hud-avatar-wrap">
                 <img id="playerAvatar" class="hud-avatar" alt="Персонаж" />
@@ -185,59 +176,55 @@
       </section>
 
       <!-- MAP SCREEN -->
-      <section id="screen-map" class="screen hidden">
-        <h2>Карта маршрута</h2>
-        <p class="screen-desc">
-          Точки маршрута соединены линиями. Выбери любую следующую точку, до которой хватает топлива.
-        </p>
-        <canvas id="mapCanvas" width="800" height="450"></canvas>
-        <div id="mapInfo" class="map-info"></div>
-        <button id="btnStartSegment" class="primary">
-          Поехать к выбранной точке
-        </button>
-        <button id="btnBackToStopFromMap">
-          Вернуться на остановку
-        </button>
+      <section id="screen-map" class="screen screen-map hidden">
+        <canvas id="mapCanvas"></canvas>
       </section>
 
       <!-- ROAD SCREEN -->
       <section id="screen-road" class="screen hidden">
         <h2>Дорога</h2>
-        <p class="screen-desc" id="roadStatus">
-          Вы выехали на маршрут.
-        </p>
+        <p class="screen-desc" id="roadStatus">Вы выехали на маршрут.</p>
 
         <canvas id="roadCanvas" width="800" height="450"></canvas>
+
         <p class="screen-desc small">
-          Управление: A/D или стрелки влево/вправо — смещение по полосе. Когда проезжаешь мимо автостопщика или точки интереса, машина замедляется и вылезает событие.
+          Управление: A/D или стрелки влево/вправо — смещение по полосе. Когда проезжаешь мимо автостопщика
+          или точки интереса, машина замедляется и вылезает событие.
         </p>
 
         <div class="card">
           <h3>Событие</h3>
-          <div id="eventContainer">
-            <!-- сюда рендерятся события / автостопщики -->
-          </div>
+          <div id="eventContainer"></div>
         </div>
 
-        <button id="btnRoadContinue" class="primary">Продолжить поездку</button>
+        <button id="btnRoadContinue" class="primary" type="button">Продолжить поездку</button>
       </section>
 
-      <!-- GAME OVER / FINISH -->
+      <!-- END -->
       <section id="screen-end" class="screen hidden">
         <h2 id="endTitle">Конец</h2>
         <p id="endDescription"></p>
-        <button id="btnRestart">Начать заново</button>
+        <button id="btnRestart" type="button">Начать заново</button>
       </section>
     </main>
   </div>
 
-    <!-- Порядок важен: сначала утилиты и данные, потом сцены, потом входная точка -->
+  <!-- Скрипты: строго в порядке зависимостей, БЕЗ defer -->
+
+  <!-- Utils (самое первое) -->
   <script src="src/core/game-utils.js"></script>
+
+  <!-- Sprites MUST be before any compatibility shim that expects spritePaths/sprites -->
+  <script src="src/data/game-sprites.js"></script>
+  <script src="src/data/stop-dialogs.js"></script>
 
   <!-- DATA (refactored) -->
   <script src="src/data/routes/segments.js"></script>
   <script src="src/data/routes/hitchhikers.js"></script>
+  <script src="src/data/routes/map-constants.js"></script>
   <script src="src/data/routes/map.js"></script>
+  <script src="src/data/routes/map-grid.js"></script>
+
   <script src="src/data/game-items.js"></script>
   <script src="src/data/characters/characters.js"></script>
 
@@ -248,16 +235,12 @@
   <!-- Compatibility shim (kept) -->
   <script src="src/data/game-data.js"></script>
 
-  <!-- Sprites + dialogs -->
-  <script src="src/data/game-sprites.js"></script>
-  <script src="src/data/stop-dialogs.js"></script>
-
   <!-- Core -->
   <script src="src/core/game-state.js"></script>
   <script src="src/core/game-canvas.js"></script>
+  <script src="src/core/screens-core.js"></script>
 
-  <!-- Scenes -->
-  <!-- stop scene modules (must be BEFORE scene-stop.js) -->
+  <!-- STOP scene modules (must be BEFORE scene-stop.js) -->
   <script src="src/scenes/stop/stop-geometry.js"></script>
   <script src="src/scenes/stop/stop-parse.js"></script>
   <script src="src/scenes/stop/stop-entities.js"></script>
@@ -267,24 +250,28 @@
   <script src="src/scenes/stop/stop-interactions.js"></script>
   <script src="src/scenes/stop/stop-render.js"></script>
   <script src="src/scenes/stop/stop-resize.js"></script>
-
-  <!-- Orchestrator -->
   <script src="src/scenes/scene-stop.js"></script>
 
+  <!-- MAP scene (must be BEFORE input.js because input binds handleMapClick) -->
+  <script src="src/scenes/map/map-geometry.js"></script>
+  <script src="src/scenes/map/map-ui.js"></script>
+  <script src="src/scenes/map/map-resize.js"></script>
+  <script src="src/scenes/map/map-render.js"></script>
   <script src="src/scenes/scene-map.js"></script>
-  <!-- Road scene split into smaller components -->
+
+  <!-- ROAD scene -->
   <script src="src/scenes/road/road-render.js"></script>
   <script src="src/scenes/road/road-update.js"></script>
   <script src="src/scenes/road/hitchhiker-event.js"></script>
   <script src="src/scenes/road/fuel-event.js"></script>
   <script src="src/scenes/scene-road.js"></script>
-  <script src="src/core/screens-core.js"></script>
+
+  <!-- Other scenes -->
   <script src="src/scenes/scene-menu.js"></script>
   <script src="src/scenes/scene-end.js"></script>
 
-  <!-- Input + main -->
+  <!-- Input + main LAST -->
   <script src="src/core/input.js"></script>
   <script src="src/core/game-main.js"></script>
-
 </body>
 </html>

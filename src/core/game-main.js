@@ -67,7 +67,7 @@ function gameLoop(timestamp) {
   if (state.mode === "stop") {
     renderStopHub(dt);
   } else if (state.mode === "map") {
-    renderMap();
+    renderMap(dt);
   } else if (state.mode === "road") {
     updateRoad(dt);
   }

@@ -1,3 +1,4 @@
+// src/core/input.js
 // input.js
 
 function setupInput() {
@@ -13,7 +14,7 @@ function setupInput() {
       } else if (state.mode === "stop" || state.mode === "road") {
         setScreen("screen-map");
       }
-      return; // дальше этот keydown можно не обрабатывать
+      return;
     }
 
     if (e.code === "KeyI") {
@@ -31,6 +32,21 @@ function setupInput() {
       if (state.mode === "stop") {
         handleHubInteract();
       }
+      return;
+    }
+
+    if (e.code === "Enter" || e.code === "NumpadEnter" || e.key === "Enter") {
+      if (state.mode === "map") {
+        e.preventDefault();
+
+        const fn = window.mapTryStartTravelToSelected;
+        if (typeof fn === "function") {
+          fn();
+        } else {
+          console.warn("[input] mapTryStartTravelToSelected is not defined");
+        }
+      }
+      return;
     }
   });
 
@@ -73,8 +89,18 @@ function setupInput() {
     };
   }
 
-  if (mapCanvas) {
-    mapCanvas.addEventListener("click", handleMapClick);
+  // MAP click
+  const mapCanvasEl = /** @type {HTMLCanvasElement|null} */ (qid("mapCanvas"));
+  if (mapCanvasEl) {
+    mapCanvasEl.addEventListener("click", (ev) => {
+      // не падаем, если handleMapClick не торчит в window
+      const fn = window.handleMapClick;
+      if (typeof fn === "function") {
+        fn(ev);
+      } else {
+        // можно оставить молча, но лучше один раз подсветить проблему
+        console.warn("[input] handleMapClick is not defined (window.handleMapClick missing)");
+      }
+    });
   }
 }
-

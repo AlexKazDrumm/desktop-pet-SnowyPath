@@ -1,10 +1,30 @@
-#screen-map {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* styles/screen-map.css */
+
+/* Экран карты должен быть как stop: canvas рисуется в фиксированной сетке (16x8),
+   а позиционирование/размер задаёт resizeMapCanvas() */
+
+.screen-map {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
 }
 
+/* ВАЖНО: не тянем canvas на 100% — иначе ломаем pixel-perfect */
 #mapCanvas {
-  max-width: 100%;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: auto;
   height: auto;
+
+  border: none;
+  border-radius: 0;
+
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }

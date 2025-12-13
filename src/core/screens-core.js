@@ -51,8 +51,13 @@ function setScreen(screenId) {
 
   if (screenId === "screen-map") {
     state.mode = "map";
+    if (typeof enterMapScene === "function") {
+      enterMapScene();
+    }
     renderMap();
-    renderMapInfo();
+    if (typeof renderMapInfo === "function") {
+      renderMapInfo();
+    }
   } else if (screenId === "screen-stop") {
     state.mode = "stop";
     resizeStopCanvas();
