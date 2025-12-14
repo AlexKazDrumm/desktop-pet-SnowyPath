@@ -124,14 +124,15 @@ function _computeZoneBounds(zoneX, side) {
   return { start: zoneX + (1 - zoneFrac), end: zoneX + 1 };
 }
 
-function _computeZoneRect(layout, zoneX, syTop, heightCells, side) {
+function _computeZoneRect(layout, zoneX, syTop, heightCells, side, align) {
   const zrFull = _roadCellRect(layout, zoneX, syTop);
   const frac = (typeof ROAD_INTERACT_FRAC === "number") ? ROAD_INTERACT_FRAC : 0.28;
   const zrW = Math.max(1, Math.floor(zrFull.w * frac));
   const alignLeft = side === "left";
   const zrX = alignLeft ? zrFull.x + 2 : zrFull.x + zrFull.w - zrW - 2;
-  const zrY = zrFull.y;
   const zrH = Math.max(1, heightCells * zrFull.h);
+  const alignCenter = align === "center";
+  const zrY = alignCenter ? zrFull.y + (zrFull.h - zrH) / 2 : zrFull.y;
   return { x: zrX, y: zrY, w: zrW, h: zrH };
 }
 
@@ -397,7 +398,7 @@ function renderRoadScene() {
     const zoneX = (typeof ent.xZone === 'number')
       ? ent.xZone
       : (side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
-    const zr = _computeZoneRect(layout, zoneX, sy, spriteH / layout.cellH, side);
+    const zr = _computeZoneRect(layout, zoneX, sy, spriteH / layout.cellH, side, "center");
     const bounds = _computeZoneBounds(zoneX, side);
     const carLeft = (state.road.carX || 0);
     const carRight = carLeft + 1;
@@ -410,10 +411,6 @@ function renderRoadScene() {
     ctx.strokeStyle = strong ? "rgba(34,197,94,0.95)" : "rgba(34,197,94,0.75)";
     ctx.lineWidth = Math.max(1, Math.floor(Math.min(zr.w, zr.h) * 0.06));
     ctx.strokeRect(zr.x + ctx.lineWidth * 0.5, zr.y + ctx.lineWidth * 0.5, zr.w - ctx.lineWidth, zr.h - ctx.lineWidth);
-
-    // маленькая метка типа (чтобы визуально отличались)
-    const tag = Math.max(2, Math.floor(xr.w * 0.14));
-    ctx.fillRect(xr.x + 2, xr.y + 2, tag, tag);
 
     // collision check: determine actual canvas Y of the interact zone (entities were drawn with vertical translate)
     // collision handling is performed in updateRoad() so rendering stays purely visual
