@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="styles/screen-map.css" />
   <link rel="stylesheet" href="styles/screen-road.css" />
   <link rel="stylesheet" href="styles/screen-end.css" />
+  <link rel="stylesheet" href="styles/screen-lose.css" />
 </head>
 
 <body>
@@ -191,6 +192,17 @@
         <h2 id="endTitle">Конец</h2>
         <p id="endDescription"></p>
         <button id="btnRestart" type="button">Начать заново</button>
+      </section>
+
+      <section id="screen-lose" class="screen hidden">
+        <div class="lose-grid">
+          <div class="lose-panel">
+            <h2 id="loseTitle">Плохая поездка</h2>
+            <p id="loseDescription"></p>
+            <p id="loseHint" class="lose-hint"></p>
+            <button id="btnLoseRestart" type="button">Попробовать снова</button>
+          </div>
+        </div>
       </section>
     </main>
   </div>

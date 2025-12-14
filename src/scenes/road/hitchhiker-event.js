@@ -6,6 +6,8 @@ const HITCHHIKER_PAY = {
   s2_h1: { type: "none" } // без денег, просто просит подвезти
 };
 
+const MANIAC_IDS = ["s1_h5", "s2_h5"];
+
 const HITCHHIKER_TALK = {
   s1_h1: {
     ask: "Подкиньте до техникума, рюкзак уже тянет плечо.",
@@ -108,6 +110,12 @@ function triggerHitchhikerEvent(h) {
   }
 
   function grantReward(amount) {
+    if (MANIAC_IDS.includes(h.id)) {
+      if (typeof loseFromManiac === "function") {
+        loseFromManiac(h.name || "Опасный пассажир");
+      }
+      return "Это был маньяк. Игра окончена.";
+    }
     if (payProfile.type === "item") {
       if (typeof addInventoryItemById === "function" && payProfile.itemId) {
         addInventoryItemById(payProfile.itemId, 1);
@@ -123,7 +131,7 @@ function triggerHitchhikerEvent(h) {
 
   function openMainDialog() {
     roadDialogOpen(
-      [`Хочет поехать за ${getRewardLabel(base)} (${getRewardLabel(minPay)}–${getRewardLabel(maxPay)}).`],
+      ["Попутчик просится в дорогу."],
       [
         {
           id: "talk",
@@ -132,7 +140,7 @@ function triggerHitchhikerEvent(h) {
         },
         {
           id: "take_base",
-          label: `Подвезти за ${getRewardLabel(base)}`,
+          label: "Подвезти",
           onPick: () => {
             showResultLine(grantReward(base));
           },
@@ -205,7 +213,13 @@ function triggerHitchhikerEvent(h) {
     const ask = info.ask || "Куда тебя подбросить?";
     const dest = info.dest || "До ближайшей развилки.";
     const about = info.about || "Не любит рассказывать о себе.";
-    const pay = info.pay || "Обещает рассчитаться как сможет.";
+    const pay =
+      info.pay ||
+      (payProfile.type === "item"
+        ? `Отдаст ${payProfile.itemName || "предмет"} вместо денег.`
+        : payProfile.type === "none"
+          ? "Денег нет — просит подвезти бесплатно."
+          : `Готов заплатить ${getRewardLabel(base)} (диапазон ${getRewardLabel(minPay)}–${getRewardLabel(maxPay)}).`);
 
     roadDialogOpen([ask], [
       {

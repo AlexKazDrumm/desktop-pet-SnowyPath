@@ -2,17 +2,22 @@
 
 function setupEndScreen() {
   const btnRestart = /** @type {HTMLButtonElement|null} */ (qid("btnRestart"));
-  if (!btnRestart) return;
+  const btnLoseRestart = /** @type {HTMLButtonElement|null} */ (qid("btnLoseRestart"));
+  const hook = (btn) => {
+    if (!btn) return;
+    btn.onclick = () => {
+      state = createInitialState();
+      renderStats();
 
-  btnRestart.onclick = () => {
-    state = createInitialState();
-    renderStats();
+      if (stopCanvas) {
+        state.hub.x = stopCanvas.width / 2;
+        state.hub.y = stopCanvas.height / 2;
+      }
 
-    if (stopCanvas) {
-      state.hub.x = stopCanvas.width / 2;
-      state.hub.y = stopCanvas.height / 2;
-    }
-
-    setScreen("screen-stop");
+      setScreen("screen-stop");
+    };
   };
+
+  hook(btnRestart);
+  hook(btnLoseRestart);
 }

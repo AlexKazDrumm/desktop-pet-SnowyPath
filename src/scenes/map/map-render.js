@@ -102,6 +102,7 @@ function renderMap(dt) {
   // синк текстов
   mapHudState.statsText = buildMapStatsText();
   mapHudState.infoText = computeRouteInfoText();
+  mapHudState.poiText = playerHasMapItem() ? computeRoutePoiText() : "";
 
   const ctx = mapCtx;
   const w = mapCanvas.width;
@@ -255,7 +256,9 @@ function renderMap(dt) {
   });
 
   mapDrawPanel(ctx, rBotMid);
-  const botText = mapHudState.toastText ? mapHudState.toastText : mapHudState.controlsText;
+  const botText = mapHudState.toastText
+    ? mapHudState.toastText
+    : (mapHudState.poiText || mapHudState.controlsText);
   mapDrawTextInRect(ctx, botText, rBotMid, {
     fontSize: Math.max(9, Math.floor(stage.cellSize * 0.16)),
     color: mapHudState.toastText ? "#fbbf24" : "#9ca3af",

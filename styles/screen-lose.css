@@ -1,0 +1,52 @@
+#screen-lose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.lose-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: min(720px, 100%);
+}
+
+.lose-panel {
+  background: rgba(8, 15, 26, 0.92);
+  border: 1px solid rgba(59, 73, 99, 0.8);
+  border-radius: 10px;
+  padding: 24px 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.lose-panel h2 {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+  color: #f8fafc;
+}
+
+.lose-panel p {
+  margin: 6px 0;
+  color: #e5e7eb;
+}
+
+.lose-hint {
+  color: #f97316;
+  font-weight: 600;
+}
+
+#btnLoseRestart {
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: #ef4444;
+  color: #0b1220;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+#btnLoseRestart:hover {
+  background: #f87171;
+}

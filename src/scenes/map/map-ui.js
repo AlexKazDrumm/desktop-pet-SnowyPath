@@ -15,6 +15,7 @@ const mapHudState = {
 
   statsText: "",
   infoText: "",
+  poiText: "",
   controlsTextDefault: "ЛКМ — выбрать точку • Enter — ехать • M — назад",
   controlsText: "ЛКМ — выбрать точку • Enter — ехать • M — назад"
 };
@@ -70,6 +71,48 @@ function computeRouteInfoText() {
   return t;
 }
 
+function playerHasMapItem() {
+  const inv = Array.isArray(state.inventory) ? state.inventory : [];
+  return inv.some((it) => it && it.id === "map");
+}
+
+function computeRoutePoiText() {
+  if (!playerHasMapItem()) return "";
+
+  const cur = (typeof state.currentPointIndex === "number") ? state.currentPointIndex : 0;
+  const sel = (typeof mapHudState.selectedPointIndex === "number")
+    ? mapHudState.selectedPointIndex
+    : null;
+
+  if (sel == null || sel <= cur) return "Выберите точку впереди, чтобы увидеть здания по пути.";
+
+  const segs = Array.isArray(window.segments) ? window.segments : [];
+  const cum = Array.isArray(window.cumulativeDistances) ? window.cumulativeDistances : [];
+
+  const lines = [];
+
+  for (let i = cur; i < sel; i++) {
+    const seg = segs[i];
+    if (!seg) break;
+    const dist = Number(seg.distance) || 0;
+    const segStart = (cum[i] != null) ? Number(cum[i]) || 0 : 0;
+    const fromCur = segStart - ((cum[cur] != null) ? Number(cum[cur]) || 0 : 0);
+
+    const placePoi = (label, price, frac) => {
+      const km = Math.round(fromCur + Math.max(1, dist * frac));
+      const priceText = price ? `, цены: ${price}` : "";
+      lines.push(`${label} (через ${km} км${priceText})`);
+    };
+
+    if (seg.hasGasStation) placePoi("Заправка", "10₽ за 10 топлива", 0.30);
+    if (seg.hasDiner) placePoi("Закусочная", "10₽ за 40 сытости", 0.65);
+    if (seg.hasMotel) placePoi("Мотель", "25₽, восстанавливает усталость", 0.85);
+  }
+
+  if (!lines.length) return "По пути к выбранной точке нет отмеченных зданий.";
+  return lines.join("\n");
+}
+
 function setMapControlsText(text) {
   const s = String(text || "");
   mapHudState.controlsText = s || mapHudState.controlsTextDefault;
@@ -88,5 +131,6 @@ function initMapSceneUI() {
   mapHudState.selectedPointIndex = null;
   mapHudState.statsText = buildMapStatsText();
   mapHudState.infoText = computeRouteInfoText();
+  mapHudState.poiText = "";
   mapHudState.controlsText = mapHudState.controlsTextDefault;
 }

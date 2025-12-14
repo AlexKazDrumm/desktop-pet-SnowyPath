@@ -36,7 +36,7 @@ function renderStats() {
  * @param {"screen-menu"|"screen-stop"|"screen-map"|"screen-road"|"screen-end"} screenId
  */
 function setScreen(screenId) {
-  const ids = ["screen-menu", "screen-stop", "screen-map", "screen-road", "screen-end"];
+  const ids = ["screen-menu", "screen-stop", "screen-map", "screen-road", "screen-end", "screen-lose"];
 
   for (const id of ids) {
     const el = qid(id);
@@ -87,7 +87,7 @@ function setScreen(screenId) {
     // В меню и в хабе верхняя статистика скрыта — она уехала в нижнюю панель
     statsBar.classList.toggle(
       "hidden",
-      screenId === "screen-menu" || screenId === "screen-stop" || screenId === "screen-map"
+      screenId === "screen-menu" || screenId === "screen-stop" || screenId === "screen-map" || screenId === "screen-lose"
     );
   }
 
@@ -225,6 +225,17 @@ function endGame(title, description) {
   if (t) t.textContent = title;
   if (d) d.textContent = description;
   setScreen("screen-end");
+}
+
+function loseFromManiac(name) {
+  state.alive = false;
+  const t = qid("loseTitle");
+  const d = qid("loseDescription");
+  const h = qid("loseHint");
+  if (t) t.textContent = "Плохая поездка";
+  if (d) d.textContent = `${name || "Опасный пассажир"} оказался маньяком.`;
+  if (h) h.textContent = "Будьте внимательны к подозрительным автостопщикам.";
+  setScreen("screen-lose");
 }
 
 function endSuccess() {
