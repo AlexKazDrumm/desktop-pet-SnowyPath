@@ -108,7 +108,14 @@ function tryStartTravelToSelected() {
 
     // build world rows and roadside entities for the selected route
     try {
-      const routeSegs = Array.isArray(segments) ? segments.slice(cur, sel) : [];
+      // copy segments and keep original index so road templates/entities match the real map leg
+      const routeSegs = Array.isArray(segments)
+        ? segments.slice(cur, sel).map((seg, idx) => ({
+            ...seg,
+            _globalIndex: cur + idx,
+            pointIndex: cur + idx,
+          }))
+        : [];
       if (typeof buildRoadWorldRows === "function") {
         state.road.worldRows = buildRoadWorldRows(routeSegs);
       }
