@@ -78,7 +78,8 @@ window.hubGridConfigs = [
         relY: 0.28,
         relW: 0.26,
         relH: 0.26,
-        spriteKey: "prop_npc",
+        spriteKey: "prop_npc_instructor_gas",
+        avatarKey: "avatar_npc_instructor_gas",
         solid: true,
         dir: "down"
       },

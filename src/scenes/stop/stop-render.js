@@ -76,22 +76,26 @@ function makeInteractAvatarPayload(avatarKey, kind, themeKey) {
   let src = "";
 
   if (key) {
-    if (tk) {
-      if (key.startsWith("avatar_")) {
-        src = `assets/avatars/${tk}_${key}.png`;
-      } else if (typeof sprites === "object" && sprites) {
+    const tryThemedSprite = () => {
+      if (!tk) return "";
+      if (key.startsWith("avatar_")) return `assets/avatars/${tk}_${key}.png`;
+      if (typeof sprites === "object" && sprites) {
         const themedKey = `${tk}_${key}`;
-        if (sprites[themedKey] && sprites[themedKey].src) src = sprites[themedKey].src;
+        if (sprites[themedKey] && sprites[themedKey].src) return sprites[themedKey].src;
       }
-    }
+      return "";
+    };
 
-    if (!src) {
-      if (key.startsWith("avatar_")) {
-        src = `assets/avatars/${key}.png`;
-      } else if (typeof sprites === "object" && sprites && sprites[key] && sprites[key].src) {
-        src = sprites[key].src;
-      }
-    }
+    const tryPlainSprite = () => {
+      if (key.startsWith("avatar_")) return `assets/avatars/${key}.png`;
+      if (typeof sprites === "object" && sprites && sprites[key] && sprites[key].src) return sprites[key].src;
+      return "";
+    };
+
+    // Prefer themed only if it exists; otherwise fallback to plain key
+    const themed = tryThemedSprite();
+    if (themed) src = themed;
+    if (!src) src = tryPlainSprite();
   }
 
   return { src, kind };
