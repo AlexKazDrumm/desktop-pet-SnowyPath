@@ -160,10 +160,25 @@ function _drawCar(ctx, carRect, carAngleRad) {
   if (!carSprite) carSprite = (sprites && sprites.car) ? sprites.car : null;
 
   const pad = Math.floor(carRect.w * 0.08);
-  const dx = carRect.x + pad;
-  const dy = carRect.y + pad;
-  const dw = carRect.w - pad * 2;
-  const dh = carRect.h - pad * 2;
+  const maxH = Math.max(1, Math.floor(carRect.h * 0.5));
+  const usableW = Math.max(1, carRect.w - pad * 2);
+  const usableH = Math.max(1, Math.min(maxH, carRect.h - pad * 2));
+
+  let dw = usableW;
+  let dh = usableH;
+
+  if (carSprite && _hasSprite(carSprite)) {
+    const aspect = carSprite.naturalWidth / Math.max(1, carSprite.naturalHeight);
+    dw = Math.min(usableW, Math.floor(usableH * aspect));
+    dh = Math.min(usableH, Math.floor(dw / aspect));
+  } else {
+    // fallback rectangle keeps a car-like silhouette even without a sprite
+    dw = Math.min(usableW, Math.floor(usableH * 2));
+    dh = usableH;
+  }
+
+  const dx = carRect.x + Math.floor((carRect.w - dw) / 2);
+  const dy = carRect.y + Math.floor((carRect.h - dh) / 2);
 
   // Если есть спрайт — рисуем с лёгким поворотом (угол небольшой, так что артефакты терпимы)
   if (carSprite && _hasSprite(carSprite)) {
@@ -181,8 +196,7 @@ function _drawCar(ctx, carRect, carAngleRad) {
 
   // fallback-прямоугольник
   ctx.fillStyle = "#f97316";
-  const p2 = Math.floor(carRect.w * 0.12);
-  ctx.fillRect(carRect.x + p2, carRect.y + p2, carRect.w - p2 * 2, carRect.h - p2 * 2);
+  ctx.fillRect(dx, dy, dw, dh);
 }
 
 function renderRoadScene() {

@@ -58,6 +58,11 @@ function tryStartTravelToSelected() {
     return;
   }
 
+  if (!state.hub || !state.hub.inCar) {
+    showMapToast("Сядьте в машину, чтобы выехать");
+    return;
+  }
+
   // allow only forward travel
   if (sel <= cur) {
     showMapToast("You are already there");
