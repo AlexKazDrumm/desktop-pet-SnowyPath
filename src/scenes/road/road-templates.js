@@ -2,14 +2,22 @@
 
 /**
  * Каждый сегмент — готовый набор строк 16-символьной ASCII-сетки.
- * ВАЖНО (как ты требуешь):
- * - длина segment.grid === segment.distance (например 30 строк)
- * - мы рисуем по 6 строк, но мир реально содержит все строки distance
+ * ВАЖНО:
+ * - длина segment.grid === segment.distance
  *
- * Символы (для рендера сейчас важны только # / s / .):
+ * Символы:
  *  # — асфальт (дорога)
  *  s — снег/сугроб (обочина декоративная)
  *  . — пусто
+ *
+ * Здания (символы зданий):
+ *  G — gas
+ *  F — food
+ *  H — hotel
+ *
+ * ВАЖНО для road-build.js:
+ * - здания допустимы только 2x1, 1x2, 2x2
+ * - хотя бы одна клетка здания должна быть соседней (4-соседство) к дороге
  */
 
 // helpers
@@ -21,7 +29,6 @@ function _assert16(s) {
     const start = Math.floor(extra / 2);
     return str.slice(start, start + 16);
   }
-
   return str + ".".repeat(16 - str.length);
 }
 
@@ -47,90 +54,108 @@ function _applyBuildings(grid, buildings) {
 /**
  * Segment 1 (distance 30): ровная дорога, снег по бокам
  */
-const SEG0_30 = _applyBuildings([
-  "...ssss####ssss...",
-  "...s..s####s..s...",
-  "...s...####...s...",
-  "...s...####...s...",
-  "...s..s####s..s...",
-  "...ssss####ssss...",
+const SEG0_30 = _applyBuildings(
+  [
+    "...ssss####ssss...",
+    "...s..s####s..s...",
+    "...s...####...s...",
+    "...s...####...s...",
+    "...s..s####s..s...",
+    "...ssss####ssss...",
 
-  "...ssss####ssss...",
-  "...s...####...s...",
-  "...s..s####s..s...",
-  "...s...####...s...",
-  "...s...####...s...",
-  "...ssss####ssss...",
+    "...ssss####ssss...",
+    "...s...####...s...",
+    "...s..s####s..s...",
+    "...s...####...s...",
+    "...s...####...s...",
+    "...ssss####ssss...",
 
-  "...ssss####ssss...",
-  "...s..s####s..s...",
-  "...s...####...s...",
-  "...s...####...s...",
-  "...s..s####s..s...",
-  "...ssss####ssss...",
+    "...ssss####ssss...",
+    "...s..s####s..s...",
+    "...s...####...s...",
+    "...s...####...s...",
+    "...s..s####s..s...",
+    "...ssss####ssss...",
 
-  "...ssss####ssss...",
-  "...s...####...s...",
-  "...s..s####s..s...",
-  "...s...####...s...",
-  "...s...####...s...",
-  "...ssss####ssss...",
+    "...ssss####ssss...",
+    "...s...####...s...",
+    "...s..s####s..s...",
+    "...s...####...s...",
+    "...s...####...s...",
+    "...ssss####ssss...",
 
-  "...ssss####ssss...",
-  "...s..s####s..s...",
-  "...s...####...s...",
-  "...s...####...s...",
-  "...s..s####s..s...",
-  "...ssss####ssss...",
-], [
-  { char: "G", x0: 12, y0: 4,  x1: 14, y1: 7 },
-  { char: "F", x0: 0,  y0: 14, x1: 2,  y1: 17 },
-  { char: "H", x0: 11, y0: 22, x1: 14, y1: 25 }
-]);
+    "...ssss####ssss...",
+    "...s..s####s..s...",
+    "...s...####...s...",
+    "...s...####...s...",
+    "...s..s####s..s...",
+    "...ssss####ssss...",
+  ],
+  [
+    // Все здания строго рядом с дорогой и только 2x1 / 1x2 / 2x2
+
+    // GAS (2x2) справа, касается дороги через x=10 сосед к x=9
+    { char: "G", x0: 10, y0: 4, x1: 11, y1: 5 },
+
+    // FOOD (1x2) слева, касается дороги через x=5 сосед к x=6
+    { char: "F", x0: 5, y0: 14, x1: 5, y1: 15 },
+
+    // HOTEL (2x1) справа
+    { char: "H", x0: 10, y0: 22, x1: 11, y1: 22 },
+  ]
+);
 
 /**
- * Segment 2 (distance 30): чуть “другой” рисунок обочины (разбивка сугробов)
+ * Segment 2 (distance 30): чуть “другой” рисунок обочины
  */
-const SEG1_30 = _applyBuildings([
-  "..ssss..####..ssss",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..ssss..####..ssss",
+const SEG1_30 = _applyBuildings(
+  [
+    "..ssss..####..ssss",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..ssss..####..ssss",
 
-  "..ssss..####..ssss",
-  "..s.....####.....s",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..s..s..####..s..s",
-  "..ssss..####..ssss",
+    "..ssss..####..ssss",
+    "..s.....####.....s",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..s..s..####..s..s",
+    "..ssss..####..ssss",
 
-  "..ssss..####..ssss",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..ssss..####..ssss",
+    "..ssss..####..ssss",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..ssss..####..ssss",
 
-  "..ssss..####..ssss",
-  "..s.....####.....s",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..s..s..####..s..s",
-  "..ssss..####..ssss",
+    "..ssss..####..ssss",
+    "..s.....####.....s",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..s..s..####..s..s",
+    "..ssss..####..ssss",
 
-  "..ssss..####..ssss",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..s..s..####..s..s",
-  "..s.....####.....s",
-  "..ssss..####..ssss",
-], [
-  { char: "G", x0: 0,  y0: 5,  x1: 2,  y1: 8 },
-  { char: "F", x0: 13, y0: 12, x1: 15, y1: 15 },
-  { char: "H", x0: 1,  y0: 20, x1: 3,  y1: 23 }
-]);
+    "..ssss..####..ssss",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..s..s..####..s..s",
+    "..s.....####.....s",
+    "..ssss..####..ssss",
+  ],
+  [
+    // GAS (2x1) слева
+    { char: "G", x0: 4, y0: 5, x1: 5, y1: 5 },
+
+    // FOOD (2x2) справа
+    { char: "F", x0: 10, y0: 12, x1: 11, y1: 13 },
+
+    // HOTEL (1x2) слева
+    { char: "H", x0: 5, y0: 20, x1: 5, y1: 21 },
+  ]
+);
 
 const ROAD_SEGMENT_TEMPLATES = [
   {
@@ -138,13 +163,11 @@ const ROAD_SEGMENT_TEMPLATES = [
     themeKey: "hub0",
     distance: 30,
     grid: SEG0_30,
-    // manual entities: hitchhikers/npcs with `row` relative to segment (0..distance-1)
     entities: [
-      // S1 (segmentIndex: 0) — все 5
-      { kind: "hitchhiker", row: 4,  hitchhikerId: "s1_h3", id: "tmpl_s1_h3", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
-      { kind: "hitchhiker", row: 9,  hitchhikerId: "s1_h1", id: "tmpl_s1_h1", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 4, hitchhikerId: "s1_h3", id: "tmpl_s1_h3", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
+      { kind: "hitchhiker", row: 9, hitchhikerId: "s1_h1", id: "tmpl_s1_h1", xNpc: ROAD_LEFT_NPC_X, xZone: ROAD_LEFT_INTERACT_X, side: "left" },
       { kind: "hitchhiker", row: 14, hitchhikerId: "s1_h2", id: "tmpl_s1_h2", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
-      { kind: "hitchhiker", row: 19, hitchhikerId: "s1_h4", id: "tmpl_s1_h4", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 19, hitchhikerId: "s1_h4", id: "tmpl_s1_h4", xNpc: ROAD_LEFT_NPC_X, xZone: ROAD_LEFT_INTERACT_X, side: "left" },
       { kind: "hitchhiker", row: 24, hitchhikerId: "s1_h5", id: "tmpl_s1_h5", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
     ],
   },
@@ -154,16 +177,14 @@ const ROAD_SEGMENT_TEMPLATES = [
     distance: 30,
     grid: SEG1_30,
     entities: [
-      // S2 (segmentIndex: 1) — все 5
-      { kind: "hitchhiker", row: 3,  hitchhikerId: "s2_h1", id: "tmpl_s2_h1", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
-      { kind: "hitchhiker", row: 8,  hitchhikerId: "s2_h2", id: "tmpl_s2_h2", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
-      { kind: "hitchhiker", row: 13, hitchhikerId: "s2_h3", id: "tmpl_s2_h3", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 3, hitchhikerId: "s2_h1", id: "tmpl_s2_h1", xNpc: ROAD_LEFT_NPC_X, xZone: ROAD_LEFT_INTERACT_X, side: "left" },
+      { kind: "hitchhiker", row: 8, hitchhikerId: "s2_h2", id: "tmpl_s2_h2", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
+      { kind: "hitchhiker", row: 13, hitchhikerId: "s2_h3", id: "tmpl_s2_h3", xNpc: ROAD_LEFT_NPC_X, xZone: ROAD_LEFT_INTERACT_X, side: "left" },
       { kind: "hitchhiker", row: 18, hitchhikerId: "s2_h4", id: "tmpl_s2_h4", xNpc: ROAD_RIGHT_NPC_X, xZone: ROAD_RIGHT_INTERACT_X, side: "right" },
-      { kind: "hitchhiker", row: 23, hitchhikerId: "s2_h5", id: "tmpl_s2_h5", xNpc: ROAD_LEFT_NPC_X,  xZone: ROAD_LEFT_INTERACT_X,  side: "left" },
+      { kind: "hitchhiker", row: 23, hitchhikerId: "s2_h5", id: "tmpl_s2_h5", xNpc: ROAD_LEFT_NPC_X, xZone: ROAD_LEFT_INTERACT_X, side: "left" },
     ],
   },
 ];
-
 
 function getRoadSegmentTemplateByIndex(segIndex) {
   const i = Math.max(0, Math.min(segIndex, ROAD_SEGMENT_TEMPLATES.length - 1));

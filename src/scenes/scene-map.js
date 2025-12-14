@@ -168,16 +168,6 @@ function ensureMapSceneBound() {
     (e) => {
       if (!state || state.mode !== "map") return;
 
-      // M — назад (обычно в stop)
-      if (e.code === "KeyM" || e.key === "m" || e.key === "M") {
-        e.preventDefault();
-        state.mode = "stop";
-        // если есть роутинг экранов — поможем
-        if (typeof window.showScreen === "function") window.showScreen("screen-stop");
-        if (typeof window.enterStopScene === "function") window.enterStopScene();
-        return;
-      }
-
       // Enter / NumpadEnter — ехать
       const isEnter =
         e.code === "Enter" ||

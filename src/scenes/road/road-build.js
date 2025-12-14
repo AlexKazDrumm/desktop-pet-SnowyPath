@@ -11,6 +11,15 @@ function _normRow16(row) {
   return s + ".".repeat(16 - s.length);
 }
 
+function _isRoadCell(segRows, x, y) {
+  if (!Array.isArray(segRows) || !segRows.length) return false;
+  if (y < 0 || y >= segRows.length || x < 0 || x >= ROAD_COLS) return false;
+  const ch = (segRows[y] || "")[x] || "";
+  if (!ch) return false;
+  if (typeof isRoadChar === "function") return isRoadChar(ch);
+  return ch === "#";
+}
+
 function _isRoadBuildingAllowed(ch, seg) {
   if (!ch || typeof isBuildingChar !== "function" || !isBuildingChar(ch)) return false;
 
@@ -297,6 +306,7 @@ function _collectBuildingsFromSegment(segRows, worldOffsetRows, segIndex, seg) {
       visited[y][x] = true;
 
       let minX = x, maxX = x, minY = y, maxY = y;
+      let touchesRoad = false;
 
       while (stack.length) {
         const cur = stack.pop();
@@ -314,6 +324,14 @@ function _collectBuildingsFromSegment(segRows, worldOffsetRows, segIndex, seg) {
           { x: cur.x, y: cur.y - 1 }
         ];
 
+        // Require at least one cell to touch the road horizontally or vertically
+        for (const n of neigh) {
+          if (_isRoadCell(segRows, n.x, n.y)) {
+            touchesRoad = true;
+            break;
+          }
+        }
+
         for (const n of neigh) {
           if (n.x < 0 || n.x >= cols || n.y < 0 || n.y >= rows) continue;
           if (visited[n.y][n.x]) continue;
@@ -330,6 +348,11 @@ function _collectBuildingsFromSegment(segRows, worldOffsetRows, segIndex, seg) {
       const side = cx < ROAD_X0 ? "left" : "right";
       const zoneX = side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X;
 
+      const width = (maxX - minX + 1);
+      const height = (maxY - minY + 1);
+      const sizeAllowed = width <= 2 && height <= 2 && !(width === 1 && height === 1);
+      if (!sizeAllowed || !touchesRoad) continue;
+
       buildings.push({
         id: `${ch}_${segIndex}_${worldY0}_${worldY1}_${minX}_${maxX}`,
         char: ch,
@@ -344,6 +367,7 @@ function _collectBuildingsFromSegment(segRows, worldOffsetRows, segIndex, seg) {
         y1: worldY1,
         side,
         interactX: zoneX,
+        triggered: false,
       });
     }
   }

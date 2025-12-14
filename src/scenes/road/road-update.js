@@ -4,6 +4,91 @@ function _clamp(v, a, b) {
   return Math.max(a, Math.min(b, v));
 }
 
+function _finalizeBuildingChoice(building, afterAction) {
+  try {
+    if (building) {
+      building.triggered = true;
+      building._pending = false;
+    }
+    if (typeof afterAction === "function") afterAction();
+    state.road._activeBuildingId = null;
+    roadDialogClose();
+    if (typeof renderStats === "function") renderStats();
+  } catch (e) { /* ignore */ }
+}
+
+function _triggerBuildingInteraction(building) {
+  if (!building || !state || !state.road) return;
+
+  state.road._activeBuildingId = building.id || null;
+
+  const lines = [building.hint || "Остановиться у здания?"];
+  const choices = [];
+
+  if (building.type === "gas") {
+    const amount = 10;
+    const cost = 10;
+    choices.push({
+      id: "refuel",
+      label: `Заправиться (+${amount} топлива за ${cost}₽)`,
+      onPick: () => {
+        if (state.money < cost) {
+          alert("Недостаточно денег для покупки топлива.");
+          return;
+        }
+        _finalizeBuildingChoice(building, () => adjustResources({ fuel: amount, money: -cost }));
+      }
+    });
+  } else if (building.type === "food") {
+    const cost = 10;
+    const hungerGain = 40;
+    choices.push({
+      id: "eat",
+      label: `Поесть (+${hungerGain} сытости за ${cost}₽)`,
+      onPick: () => {
+        if (state.money < cost) {
+          alert("Недостаточно денег для еды.");
+          return;
+        }
+        _finalizeBuildingChoice(building, () => adjustResources({ money: -cost, hunger: hungerGain }));
+      }
+    });
+  } else if (building.type === "hotel") {
+    const cost = 25;
+    choices.push({
+      id: "sleep",
+      label: `Поспать (до 100 бодрости за ${cost}₽, -10 сытости)`,
+      onPick: () => {
+        if (state.money < cost) {
+          alert("Недостаточно денег для отдыха.");
+          return;
+        }
+        _finalizeBuildingChoice(building, () => adjustResources({ money: -cost, hunger: -10, fatigue: 100 }));
+      }
+    });
+  } else if (building.type === "work") {
+    choices.push({
+      id: "work",
+      label: "Подработать (+30₽, -10 сытости, -10 бодрости)",
+      onPick: () => _finalizeBuildingChoice(building, () => adjustResources({ money: 30, hunger: -10, fatigue: -10 }))
+    });
+  } else {
+    choices.push({
+      id: "inspect",
+      label: "Осмотреть здание",
+      onPick: () => _finalizeBuildingChoice(building)
+    });
+  }
+
+  choices.push({
+    id: "skip",
+    label: "Проехать мимо",
+    onPick: () => _finalizeBuildingChoice(building)
+  });
+
+  roadDialogOpen(lines, choices);
+}
+
 function updateRoad(dt) {
   if (!state || state.mode !== "road") return;
 
@@ -154,7 +239,7 @@ function updateRoad(dt) {
   // detect nearby buildings (для HUD/подсветки зон)
   const buildings = Array.isArray(state.road.buildings) ? state.road.buildings : [];
   for (const b of buildings) {
-    if (!b) continue;
+    if (!b || b.triggered || b._pending) continue;
     const side = b.side === "left" ? "left" : "right";
     const zoneX = (typeof b.interactX === 'number')
       ? b.interactX
@@ -168,7 +253,13 @@ function updateRoad(dt) {
     const withinRows = carWorldFloat >= (b.y0 - 0.25) && carWorldFloat <= (b.y1 + 0.25);
 
     if (withinRows && overlapsX) {
-      state.road._activeBuildingId = b.id || null;
+      // стопаемся сразу, не даём “проскочить кадр”
+      b._pending = true;
+
+      // фиксируем состояние остановки (на всякий случай — одинаково для всех ивентов)
+      state.road.pausedForEvent = true;
+
+      if (!state.road.dialog || !state.road.dialog.open) _triggerBuildingInteraction(b);
       break;
     }
   }

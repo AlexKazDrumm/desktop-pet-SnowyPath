@@ -107,7 +107,7 @@ function _drawHitchhikerSpriteInCell(ctx, img, r, padFrac, shiftFrac, facingRigh
   const shouldFlip = !facingRight;
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.scale(-1, 1);
+  if (shouldFlip) ctx.scale(-1, 1);
   ctx.translate(-cx, -cy);
   ctx.drawImage(img, dx, dy, dw, dh);
   ctx.restore();
