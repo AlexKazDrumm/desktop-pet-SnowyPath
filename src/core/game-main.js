@@ -76,7 +76,7 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+  window.addEventListener("DOMContentLoaded", () => {
   stopCanvas = /** @type {HTMLCanvasElement|null} */ (qid("stopCanvas"));
   mapCanvas  = /** @type {HTMLCanvasElement|null} */ (qid("mapCanvas"));
   roadCanvas = /** @type {HTMLCanvasElement|null} */ (qid("roadCanvas"));
@@ -89,6 +89,13 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", resizeStopCanvas);
 
   renderStats();
+  // Кнопки "Меню" на игровых экранах
+  document.querySelectorAll(".exit-to-menu").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (state && state.road) state.road.active = false;
+      setScreen("screen-menu");
+    });
+  });
   if (typeof window.setupInput === "function") {
     window.setupInput();
   } else {
@@ -102,4 +109,3 @@ window.addEventListener("DOMContentLoaded", () => {
 
   requestAnimationFrame(gameLoop);
 });
-

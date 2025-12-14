@@ -40,7 +40,7 @@ function computeStageLayout(canvasW, canvasH) {
 
   const stageRows = typeof HUB_STAGE_ROWS === "number"
     ? HUB_STAGE_ROWS
-    : ((typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 6) + 2);
+    : ((typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 7) + 2);
 
   // сначала по ширине
   let cellSize = Math.max(8, Math.floor(canvasW / cols));
@@ -58,7 +58,7 @@ function computeStageLayout(canvasW, canvasH) {
   const offsetX = Math.max(0, Math.floor((canvasW - gridW) / 2));
   const offsetY = 0;
 
-  const cityRows = typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 6;
+  const cityRows = typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 7;
   const uiRows = stageRows - cityRows;
 
   return {

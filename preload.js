@@ -1,6 +1,8 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require("electron");
 
-// На будущее, если понадобится IPC. Пока просто даём window.api-обёртку.
-contextBridge.exposeInMainWorld('api', {
-  // placeholder
+// Мост для вызовов окна из рендерера.
+contextBridge.exposeInMainWorld("api", {
+  setFullscreen: (flag) => ipcRenderer.invoke("set-fullscreen", !!flag),
+  setWindowSize: (width, height) => ipcRenderer.invoke("set-window-size", { width, height }),
+  exitApp: () => ipcRenderer.invoke("app-exit")
 });

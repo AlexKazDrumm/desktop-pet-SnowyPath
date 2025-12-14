@@ -2,11 +2,13 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: #18181b;
   color: #e5e7eb;
+  height: 100%;
 }
 
 #app {
@@ -19,6 +21,7 @@ main {
   flex: 1;
   padding: 0;
   overflow: hidden;
+  height: 100%;
 }
 
 .hidden {
@@ -30,6 +33,17 @@ main {
   max-width: 960px;
   margin: 0 auto;
   padding: 16px;
+  position: relative;
+}
+
+#screenContainer {
+  height: 100%;
+}
+
+.screen-stop,
+.screen-map,
+.screen-road {
+  min-height: 100vh;
 }
 
 h2 {

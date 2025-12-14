@@ -1,7 +1,7 @@
 // src/scenes/road/road-constants.js
 
 const ROAD_COLS = 16;
-const ROAD_VIEW_ROWS = 6;
+const ROAD_VIEW_ROWS = 7;
 const ROAD_MENU_ROWS = 2;
 const ROAD_TOTAL_ROWS = ROAD_VIEW_ROWS + ROAD_MENU_ROWS;
 const ROAD_CAR_SCREEN_ROW = ROAD_VIEW_ROWS - 1;

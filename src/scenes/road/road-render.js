@@ -271,7 +271,7 @@ function renderRoadScene() {
   };
   const carBounds = _getCarBoundsX(cxF);
 
-  // ===== draw tiles (16x6) =====
+  // ===== draw tiles (16x7) =====
   // apply fractional vertical offset for smooth sliding (no rounding)
   ctx.save();
   ctx.translate(0, scrollFrac * layout.cellH);

@@ -7,7 +7,7 @@
 
 (function initMapGridPoints() {
   const cols = (typeof window.MAP_GRID_COLS === "number") ? window.MAP_GRID_COLS : 16;
-  const rows = (typeof window.MAP_GRID_ROWS === "number") ? window.MAP_GRID_ROWS : 6;
+  const rows = (typeof window.MAP_GRID_ROWS === "number") ? window.MAP_GRID_ROWS : 7;
 
   const pts = Array.isArray(window.mapPoints) ? window.mapPoints : [];
   if (!pts.length) {

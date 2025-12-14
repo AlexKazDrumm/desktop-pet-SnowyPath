@@ -1,24 +1,26 @@
 // main.js
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 
 let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 600, // 2:1 под 16x8
-    minWidth: 800,
-    minHeight: 400,
+    fullscreen: true,
+    frame: false,
+    autoHideMenuBar: true,
+    width: 1920,
+    height: 1080, // 16:9
+    minWidth: 1280,
+    minHeight: 720,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true
     }
   });
 
-  // Фикс пропорций окна: 16x8 => 2:1
-  // Работает в оконном режиме, чтобы ресайз держал соотношение.
-  mainWindow.setAspectRatio(2);
+  // Keep 16:9 aspect ratio
+  mainWindow.setAspectRatio(16 / 9);
 
   mainWindow.loadFile("index.html");
 
@@ -39,4 +41,25 @@ app.on("activate", () => {
   if (mainWindow === null) {
     createWindow();
   }
+});
+
+ipcMain.handle("set-fullscreen", (_event, flag) => {
+  if (mainWindow) {
+    mainWindow.setFullScreen(!!flag);
+  }
+});
+
+ipcMain.handle("set-window-size", (_event, payload) => {
+  if (!mainWindow || !payload) return;
+  const width = Math.max(1, Math.floor(Number(payload.width) || 0));
+  const height = Math.max(1, Math.floor(Number(payload.height) || 0));
+  if (width && height) {
+    mainWindow.setFullScreen(false);
+    mainWindow.setSize(width, height);
+    mainWindow.center();
+  }
+});
+
+ipcMain.handle("app-exit", () => {
+  app.quit();
 });

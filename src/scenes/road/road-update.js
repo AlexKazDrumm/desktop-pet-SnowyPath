@@ -343,7 +343,7 @@ function updateRoad(dt) {
   const carScreenRow = (typeof state.road.carScreenRow === "number")
     ? state.road.carScreenRow
     : ROAD_CAR_SCREEN_ROW;
-  const viewRows = (typeof ROAD_VIEW_ROWS === "number") ? ROAD_VIEW_ROWS : 6;
+  const viewRows = (typeof ROAD_VIEW_ROWS === "number") ? ROAD_VIEW_ROWS : 7;
   const carWorldRow = worldTopRow + (viewRows - 1 - carScreenRow);
   const carCellX = Math.round(state.road.carX);
 

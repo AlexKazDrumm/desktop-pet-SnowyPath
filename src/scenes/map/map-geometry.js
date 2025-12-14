@@ -3,13 +3,13 @@
 function mapClamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
 /**
- * Layout для map stage 16x8 (map 16x6 + HUD 16x2)
+ * Layout для map stage 16x9 (map 16x7 + HUD 16x2)
  * Приоритет: чтобы влезло целочисленно (как stop).
  * offsetY = 0; offsetX центрируется при необходимости.
  */
 function computeMapStageLayout(canvasW, canvasH) {
   const cols = (typeof window.MAP_GRID_COLS === "number") ? window.MAP_GRID_COLS : 16;
-  const stageRows = (typeof window.MAP_STAGE_ROWS === "number") ? window.MAP_STAGE_ROWS : 8;
+  const stageRows = (typeof window.MAP_STAGE_ROWS === "number") ? window.MAP_STAGE_ROWS : 9;
 
   let cellSize = Math.max(8, Math.floor(Math.min(canvasW / cols, canvasH / stageRows)));
 
@@ -19,7 +19,7 @@ function computeMapStageLayout(canvasW, canvasH) {
   const offsetX = Math.max(0, Math.floor((canvasW - gridW) / 2));
   const offsetY = 0;
 
-  const mapRows = (typeof window.MAP_GRID_ROWS === "number") ? window.MAP_GRID_ROWS : 6;
+  const mapRows = (typeof window.MAP_GRID_ROWS === "number") ? window.MAP_GRID_ROWS : 7;
   const uiRows = stageRows - mapRows;
 
   return {

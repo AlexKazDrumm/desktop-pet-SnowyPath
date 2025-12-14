@@ -247,3 +247,26 @@
   font-size: 12px;
   color: #9ca3af;
 }
+
+/* Верхняя панель скрыта (используем fullscreen) */
+.top-bar {
+  display: none;
+}
+
+/* Общий экшен: кнопка выхода */
+.exit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+.exit-btn:hover {
+  background: rgba(30, 41, 59, 0.95);
+}

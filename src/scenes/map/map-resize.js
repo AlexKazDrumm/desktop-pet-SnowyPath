@@ -13,7 +13,7 @@ function resizeMapCanvas() {
   if (!cw || !ch || cw <= 0 || ch <= 0) return;
 
   const cols = (typeof window.MAP_GRID_COLS === "number") ? window.MAP_GRID_COLS : 16;
-  const stageRows = (typeof window.MAP_STAGE_ROWS === "number") ? window.MAP_STAGE_ROWS : 8;
+  const stageRows = (typeof window.MAP_STAGE_ROWS === "number") ? window.MAP_STAGE_ROWS : 9;
 
   // pixel-perfect cell size (как stop)
   const cellSize = Math.max(8, Math.floor(Math.min(cw / cols, ch / stageRows)));

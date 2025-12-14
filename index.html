@@ -26,108 +26,215 @@
 
     <main id="screenContainer">
       <!-- MENU SCREEN -->
-      <section id="screen-menu" class="screen">
-        <h2>Меню</h2>
-        <p class="screen-desc">
-          Небольшой роадтрип по трассе с ресурсами, остановками и автостопщиками.
-        </p>
+      <section id="screen-menu" class="screen screen-menu-grid">
+        <div class="menu-grid">
+          <div class="menu-hero">
+            <h2>Меню</h2>
+            <p class="screen-desc">
+              Добро пожаловать в дорогу. Выбери персонажа, познакомься с управлением или подстрой настройки перед стартом.
+            </p>
+            <div class="menu-nav">
+              <button id="btnMenuPlay" class="primary active" type="button">Играть</button>
+              <button id="btnMenuControls" type="button">Управление</button>
+              <button id="btnMenuSettings" type="button">Настройки</button>
+              <button id="btnMenuExit" type="button">Выход</button>
+            </div>
+          </div>
 
-        <div class="character-select">
-          <h3>Выберите персонажа</h3>
+          <div class="menu-panels">
+            <div id="panelMenuPlay" class="menu-panel">
+              <h3>Выбор персонажа</h3>
+              <div class="character-select">
+                <div class="character-cards" id="characterCards">
+                  <button
+                    id="character-card-tourist"
+                    class="character-card"
+                    type="button"
+                    data-char-id="tourist"
+                  >
+                    <div class="character-avatar">
+                      <img id="charCardAvatar-tourist" alt="Турист" />
+                    </div>
+                    <div class="character-info">
+                      <div class="character-name">Турист</div>
+                      <div class="character-role">Лёгкий на подъём, лишних вещей нет</div>
+                    </div>
+                  </button>
 
-          <div class="character-cards" id="characterCards">
-            <button
-              id="character-card-tourist"
-              class="character-card"
-              type="button"
-              data-char-id="tourist"
-            >
-              <div class="character-avatar">
-                <img id="charCardAvatar-tourist" alt="Турист" />
-              </div>
-              <div class="character-info">
-                <div class="character-name">Турист</div>
-                <div class="character-role">Хочет объехать весь мир</div>
-              </div>
-            </button>
+                  <button
+                    id="character-card-worker"
+                    class="character-card"
+                    type="button"
+                    data-char-id="worker"
+                  >
+                    <div class="character-avatar">
+                      <img id="charCardAvatar-worker" alt="Рабочий" />
+                    </div>
+                    <div class="character-info">
+                      <div class="character-name">Рабочий</div>
+                      <div class="character-role">Всегда готов к тяжёлой смене</div>
+                    </div>
+                  </button>
 
-            <button
-              id="character-card-worker"
-              class="character-card"
-              type="button"
-              data-char-id="worker"
-            >
-              <div class="character-avatar">
-                <img id="charCardAvatar-worker" alt="Вахтовик" />
-              </div>
-              <div class="character-info">
-                <div class="character-name">Вахтовик</div>
-                <div class="character-role">Едет на северную станцию</div>
-              </div>
-            </button>
+                  <button
+                    id="character-card-forester"
+                    class="character-card"
+                    type="button"
+                    data-char-id="forester"
+                  >
+                    <div class="character-avatar">
+                      <img id="charCardAvatar-forester" alt="Лесник" />
+                    </div>
+                    <div class="character-info">
+                      <div class="character-name">Лесник</div>
+                      <div class="character-role">Знает, как выживать в дороге</div>
+                    </div>
+                  </button>
 
-            <button
-              id="character-card-forester"
-              class="character-card"
-              type="button"
-              data-char-id="forester"
-            >
-              <div class="character-avatar">
-                <img id="charCardAvatar-forester" alt="Лесник" />
+                  <button
+                    id="character-card-mechanic"
+                    class="character-card"
+                    type="button"
+                    data-char-id="mechanic"
+                  >
+                    <div class="character-avatar">
+                      <img id="charCardAvatar-mechanic" alt="Механик" />
+                    </div>
+                    <div class="character-info">
+                      <div class="character-name">Механик</div>
+                      <div class="character-role">Починит, если что-то пойдёт не так</div>
+                    </div>
+                  </button>
+                </div>
               </div>
-              <div class="character-info">
-                <div class="character-name">Лесник</div>
-                <div class="character-role">Сибирский лесник</div>
-              </div>
-            </button>
 
-            <button
-              id="character-card-mechanic"
-              class="character-card"
-              type="button"
-              data-char-id="mechanic"
-            >
-              <div class="character-avatar">
-                <img id="charCardAvatar-mechanic" alt="Автомеханик" />
+              <div class="menu-start-row">
+                <div class="menu-start-text">Нажми «Начать», чтобы выехать в первый город.</div>
+                <button id="btnMenuStart" class="primary" type="button">Начать</button>
               </div>
-              <div class="character-info">
-                <div class="character-name">Автомеханик</div>
-                <div class="character-role">Едет на подработку</div>
+            </div>
+
+            <div id="panelMenuControls" class="menu-panel hidden">
+              <h3>Управление</h3>
+              <div class="menu-controls-list">
+                <ul>
+                  <li>WASD / стрелки — движение персонажа.</li>
+                  <li>E — взаимодействие с объектами, NPC, заправкой и т.п.</li>
+                  <li>M — открыть карту.</li>
+                  <li>I — инвентарь / его панель.</li>
+                  <li>A / D (в машине) — перестраиваться по полосам.</li>
+                  <li>Enter — подтвердить выбор в диалогах.</li>
+                </ul>
               </div>
-            </button>
+            </div>
+
+            <div id="panelMenuSettings" class="menu-panel hidden">
+              <h3>Настройки</h3>
+              <div class="settings-grid">
+                <div class="settings-row">
+                  <label for="resolutionSelect">Разрешение окна</label>
+                  <select id="resolutionSelect">
+                    <option value="1600x900">1600 × 900</option>
+                    <option value="1920x1080">1920 × 1080</option>
+                    <option value="1280x720">1280 × 720</option>
+                  </select>
+                </div>
+                <div class="settings-row">
+                  <span>Режим</span>
+                  <div class="settings-actions">
+                    <button id="btnWindowed" type="button">Оконный</button>
+                    <button id="btnFullscreenToggle" type="button" class="primary">Полный экран</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
+<!-- STOP / HUB SCREEN -->
+      <section id="screen-stop" class="screen screen-stop hidden">
+        <button class="exit-btn exit-to-menu" type="button">Меню</button>
+        <canvas id="stopCanvas"></canvas>
 
-        <div class="card big-card">
-          <h3>Как играть</h3>
+        <div class="stop-bottom-bar">
+          <div class="stop-hud-grid">
+            <div class="stop-hud-interact-avatar">
+              <div class="hud-avatar-wrap">
+                <img id="stopInteractAvatar" class="hud-avatar" alt="Аватар" />
+              </div>
+            </div>
 
-          <p>На остановках:</p>
-          <ul>
-            <li>WASD / стрелки — ходьба по хабу</li>
-            <li>E — взаимодействие с зданиями</li>
-            <li>M — открыть карту маршрута</li>
-            <li>I — открыть/закрыть инвентарь (в хабе)</li>
-          </ul>
+            <div class="stop-hud-interact-text">
+              <div id="stopObjectTitle" class="stop-object-title"></div>
+              <div id="stopHint" class="hint"></div>
+            </div>
 
-          <p>На карте:</p>
-          <ul>
-            <li>Клик по достижимой точке — выбор</li>
-            <li>Enter — старт сегмента</li>
-          </ul>
+            <div class="stop-hud-dialog">
+              <div id="stopDialog" class="stop-dialog hidden">
+                <div id="stopDialogText" class="stop-dialog-text"></div>
+                <div id="stopDialogChoices" class="stop-dialog-choices"></div>
+              </div>
+            </div>
 
-          <p>На дороге:</p>
-          <ul>
-            <li>A/D или стрелки влево/вправо — рулёжка (плавно)</li>
-            <li>Интеракт — только при въезде в зелёную зону</li>
-            <li>1–4 — выбрать вариант в диалоге, Enter — продолжить</li>
-          </ul>
+            <div class="stop-hud-center-bottom">
+              <div id="inventoryWrapper" class="inventory-wrapper">
+                <button id="btnToggleInventory" class="inventory-toggle" type="button">
+                  Инвентарь (I)
+                </button>
+
+                <div id="inventoryPanel" class="inventory-panel"></div>
+              </div>
+
+              <div id="stopControls" class="stop-controls">
+                Управление: WASD / стрелки — движение; E — взаимодействие; M — карта; I — инвентарь.
+              </div>
+            </div>
+
+            <div class="stop-hud-stats">
+              <div id="stopStats" class="stop-stats"></div>
+            </div>
+
+            <div class="stop-hud-player-avatar">
+              <div class="hud-avatar-wrap">
+                <img id="playerAvatar" class="hud-avatar" alt="Игрок" />
+              </div>
+            </div>
+          </div>
         </div>
-
-        <button id="btnMenuStart" class="primary" type="button">Начать поездку</button>
       </section>
 
-      <!-- STOP / HUB SCREEN -->
+      <!-- MAP SCREEN -->
+      <section id="screen-map" class="screen screen-map hidden">
+        <button class="exit-btn exit-to-menu" type="button">Меню</button>
+        <canvas id="mapCanvas"></canvas>
+      </section>
+
+      <!-- ROAD SCREEN (like stop/map) -->
+      <section id="screen-road" class="screen screen-road hidden">
+        <button class="exit-btn exit-to-menu" type="button">Меню</button>
+        <canvas id="roadCanvas"></canvas>
+      </section>
+
+      <!-- END -->
+      <section id="screen-end" class="screen hidden">
+        <h2 id="endTitle">Финиш</h2>
+        <p id="endDescription"></p>
+        <button id="btnRestart" type="button">Перезапустить</button>
+      </section>
+
+      <section id="screen-lose" class="screen hidden">
+        <div class="lose-grid">
+          <div class="lose-panel">
+            <h2 id="loseTitle">Проигрыш</h2>
+            <p id="loseDescription"></p>
+            <p id="loseHint" class="lose-hint"></p>
+            <button id="btnLoseRestart" type="button">Попробовать снова</button>
+          </div>
+        </div>
+      </section>
+<!-- STOP / HUB SCREEN -->
       <section id="screen-stop" class="screen screen-stop hidden">
+        <button class="exit-btn exit-to-menu" type="button">Меню</button>
         <canvas id="stopCanvas"></canvas>
 
         <div class="stop-bottom-bar">
@@ -179,11 +286,13 @@
 
       <!-- MAP SCREEN -->
       <section id="screen-map" class="screen screen-map hidden">
+        <button class="exit-btn exit-to-menu" type="button">Меню</button>
         <canvas id="mapCanvas"></canvas>
       </section>
 
       <!-- ROAD SCREEN (только canvas, как stop/map) -->
       <section id="screen-road" class="screen screen-road hidden">
+        <button class="exit-btn exit-to-menu" type="button">Меню</button>
         <canvas id="roadCanvas"></canvas>
       </section>
 

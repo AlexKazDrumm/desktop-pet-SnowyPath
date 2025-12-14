@@ -26,7 +26,7 @@ function resizeStopCanvas() {
   // 16x6 город + 2 строки HUD = 8
   const stageRows = typeof HUB_STAGE_ROWS === "number"
     ? HUB_STAGE_ROWS
-    : ((typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 6) + 2);
+    : ((typeof HUB_GRID_ROWS === "number" ? HUB_GRID_ROWS : 7) + 2);
 
   // подбираем целочисленный cellSize, чтобы ВЛЕЗЛО в контейнер
   const cellSize = Math.max(8, Math.floor(Math.min(cw / cols, ch / stageRows)));
