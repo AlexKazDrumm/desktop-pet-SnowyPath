@@ -91,9 +91,11 @@ function buildRoadWorldRows(routeSegments) {
   const segs = Array.isArray(routeSegments) ? routeSegments : [];
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i] || {};
-    const segRows = _buildSegmentRows(seg, i);
+    const globalIdx = (typeof seg._globalIndex === "number") ? seg._globalIndex : i;
+    const segRows = _buildSegmentRows(seg, globalIdx);
     for (const r of segRows) out.push(r);
-  }
+    }
+
 
   return out;
 }
@@ -143,7 +145,9 @@ function buildRoadEntities(routeSegmentsOrTotalRows) {
   if (segOffsets && segOffsets.length) {
     for (let si = 0; si < segOffsets.length; si++) {
       const s = segOffsets[si];
-      const tpl = (typeof getRoadSegmentTemplateByIndex === "function") ? getRoadSegmentTemplateByIndex(si) : null;
+      const segObj = routeSegments && routeSegments[si] ? routeSegments[si] : null;
+      const globalIdx = segObj && typeof segObj._globalIndex === "number" ? segObj._globalIndex : si;
+      const tpl = (typeof getRoadSegmentTemplateByIndex === "function") ? getRoadSegmentTemplateByIndex(globalIdx) : null;
       if (tpl && Array.isArray(tpl.entities) && tpl.entities.length) {
         for (const def of tpl.entities) {
           const relRow = Math.max(0, Math.min((s.length || 1) - 1, Number(def.row || 0)));
@@ -382,7 +386,8 @@ function buildRoadBuildings(routeSegments) {
   let offset = 0;
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i] || {};
-    const segRows = _buildSegmentRows(seg, i);
+    const globalIdx = (typeof seg._globalIndex === "number") ? seg._globalIndex : i;
+    const segRows = _buildSegmentRows(seg, globalIdx);
     const blds = _collectBuildingsFromSegment(segRows, offset, i, seg);
     for (const b of blds) list.push(b);
     offset += segRows.length;

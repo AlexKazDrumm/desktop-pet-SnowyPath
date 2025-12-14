@@ -34,20 +34,62 @@ function _assert16(s) {
 
 function _applyBuildings(grid, buildings) {
   const rows = grid.map((r) => (typeof r === "string" ? r.split("") : []));
+  const COLS = 16;
+
+  // Правила:
+  // left:  x1 <= 5  (col 6 in 1-based)
+  // right: x0 >= 10 (col 11 in 1-based)
+  const LEFT_MAX_X1 = 5;
+  const RIGHT_MIN_X0 = 10;
+
   for (const b of buildings || []) {
-    const x0 = Math.max(0, Math.floor(b.x0));
-    const y0 = Math.max(0, Math.floor(b.y0));
-    const x1 = Math.max(x0, Math.floor(b.x1));
-    const y1 = Math.max(y0, Math.floor(b.y1));
+    let x0 = Math.max(0, Math.floor(b.x0));
+    let y0 = Math.max(0, Math.floor(b.y0));
+    let x1 = Math.max(x0, Math.floor(b.x1));
+    let y1 = Math.max(y0, Math.floor(b.y1));
     const ch = (b.char || "").slice(0, 1) || "";
     if (!ch) continue;
 
+    // Определяем сторону по центру (если попало в дорогу — всё равно решаем и выталкиваем)
+    const cx = (x0 + x1) / 2;
+    const side = cx < ((typeof ROAD_X0 === "number") ? ROAD_X0 : 6) ? "left" : "right";
+
+    // Выталкиваем здание с дороги в допустимую зону
+    if (side === "left") {
+      if (x1 > LEFT_MAX_X1) {
+        const shift = x1 - LEFT_MAX_X1;
+        x0 -= shift;
+        x1 -= shift;
+      }
+    } else {
+      if (x0 < RIGHT_MIN_X0) {
+        const shift = RIGHT_MIN_X0 - x0;
+        x0 += shift;
+        x1 += shift;
+      }
+    }
+
+    // Клэмпы, чтобы не вылезло за сетку
+    if (x0 < 0) {
+      const d = -x0;
+      x0 += d;
+      x1 += d;
+    }
+    if (x1 > COLS - 1) {
+      const d = x1 - (COLS - 1);
+      x0 -= d;
+      x1 -= d;
+    }
+    x0 = Math.max(0, Math.min(COLS - 1, x0));
+    x1 = Math.max(0, Math.min(COLS - 1, x1));
+
     for (let y = y0; y <= y1 && y < rows.length; y++) {
-      for (let x = x0; x <= x1 && x < 16; x++) {
+      for (let x = x0; x <= x1 && x < COLS; x++) {
         if (Array.isArray(rows[y])) rows[y][x] = ch;
       }
     }
   }
+
   return rows.map((r) => _assert16(r.join("")));
 }
 

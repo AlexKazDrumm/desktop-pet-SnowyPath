@@ -87,15 +87,17 @@ function _drawSpriteInCell(ctx, img, r, padFrac) {
 }
 
 function _drawHitchhikerSpriteInCell(ctx, img, r, padFrac, shiftFrac, facingRight) {
-  // pad and size like normal sprite
   const pad = Math.floor(r.w * (padFrac || 0.10));
   const w = Math.max(1, r.w - pad * 2);
   const h = Math.max(1, r.h - pad * 2);
 
-  // shift closer to the road: towards the centerline depending on side
   const shiftPx = Math.floor((shiftFrac || 0.20) * r.w);
 
-  // we need to flip horizontally because source images face right by default
+  // IMPORTANT:
+  // Если твой базовый спрайт автостопщика "смотрит вправо" по умолчанию — оставь true.
+  // Если "смотрит влево" по умолчанию — поставь false.
+  const HITCHHIKER_BASE_FACES_RIGHT = true;
+
   const dx = r.x + pad + (facingRight ? shiftPx : -shiftPx);
   const dy = r.y + pad;
   const dw = w;
@@ -104,7 +106,8 @@ function _drawHitchhikerSpriteInCell(ctx, img, r, padFrac, shiftFrac, facingRigh
   const cx = dx + dw / 2;
   const cy = dy + dh / 2;
 
-  const shouldFlip = !facingRight;
+  const shouldFlip = HITCHHIKER_BASE_FACES_RIGHT ? !facingRight : facingRight;
+
   ctx.save();
   ctx.translate(cx, cy);
   if (shouldFlip) ctx.scale(-1, 1);
@@ -146,12 +149,6 @@ function _drawInteractZone(ctx, zr, strong) {
     zr.w - ctx.lineWidth,
     zr.h - ctx.lineWidth
   );
-
-  // маленький маркер "STOP"
-  ctx.fillStyle = "rgba(34,197,94,0.95)";
-  const mW = Math.max(2, Math.floor(zr.w * 0.18));
-  const mH = Math.max(2, Math.floor(zr.h * 0.18));
-  ctx.fillRect(zr.x + 2, zr.y + 2, mW, mH);
 }
 
 function _drawCar(ctx, carRect, carAngleRad) {
@@ -261,18 +258,25 @@ function renderRoadScene() {
       const r = _roadCellRect(layout, x, sy);
 
       // pick base tile like in hub
+      const isBuilding = (typeof isBuildingChar === "function") ? isBuildingChar(ch) : false;
+      const treatAsRoad = isBuilding && (typeof isRoadX === "function") ? isRoadX(x) : false;
+      const isRoadCell = (typeof isRoadChar === "function" && isRoadChar(ch)) || treatAsRoad;
+      const isSidewalkCell = (typeof isSidewalkChar === "function") ? isSidewalkChar(ch) : false;
+      const isGrassCell = (typeof isGrassChar === "function") ? isGrassChar(ch) : false;
+      const isSnowCell = (typeof isSnowChar === "function") ? isSnowChar(ch) : false;
+
       let tileBase = "tile_snow";
-      if (typeof isSidewalkChar === "function" && isSidewalkChar(ch)) tileBase = "tile_sidewalk";
-      if (typeof isGrassChar === "function" && isGrassChar(ch)) tileBase = "tile_grass";
-      if (typeof isSnowChar === "function" && isSnowChar(ch)) tileBase = "tile_snow";
-      if (typeof isRoadChar === "function" && isRoadChar(ch)) tileBase = "tile_sidewalk";
+      if (isSidewalkCell) tileBase = "tile_sidewalk";
+      if (isGrassCell) tileBase = "tile_grass";
+      if (isSnowCell) tileBase = "tile_snow";
+      if (isRoadCell) tileBase = "tile_sidewalk";
 
       const baseSpr = (typeof getThemedSprite === "function") ? getThemedSprite(themeKey, tileBase) : { img: null };
       if (typeof drawTile === "function") drawTile(ctx, baseSpr.img, r.x, r.y, r.w);
       else ctx.fillRect(r.x, r.y, r.w, r.h);
 
       // if road char — draw the road variant on top
-      if (typeof isRoadChar === "function" && isRoadChar(ch)) {
+      if (isRoadCell) {
         const rv = (typeof computeRoadVariant === "function") ? computeRoadVariant(state.road.worldRows || [], x, worldRow) : { variant: "road_straight", rot: 0 };
         const roadSpr = (typeof getThemedSprite === "function") ? getThemedSprite(themeKey, rv.variant) : { img: null };
         if (typeof drawRotatedTile === "function") drawRotatedTile(ctx, roadSpr.img, r.x, r.y, r.w, rv.rot);
@@ -289,10 +293,28 @@ function renderRoadScene() {
   for (const b of buildings) {
     if (!b || typeof b.x0 !== "number" || typeof b.y0 !== "number") continue;
 
-    const bx0 = Math.max(0, Math.floor(b.x0));
-    const bx1 = Math.max(bx0, Math.floor(typeof b.x1 === "number" ? b.x1 : b.x0));
+    let bx0 = Math.max(0, Math.floor(b.x0));
+    let bx1 = Math.max(bx0, Math.floor(typeof b.x1 === "number" ? b.x1 : b.x0));
     const by0 = Math.max(0, Math.floor(b.y0));
     const by1 = Math.max(by0, Math.floor(typeof b.y1 === "number" ? b.y1 : b.y0));
+
+    const side = b.side === "left" ? "left" : "right";
+    const minRightX = (typeof ROAD_X1 === "number") ? ROAD_X1 + 1 : 10; // column 11 (0-based 10)
+    const maxLeftX = (typeof ROAD_X0 === "number") ? ROAD_X0 - 1 : 5;   // column 6 (0-based 5)
+
+    if (side === "right" && bx0 < minRightX) {
+      const shift = minRightX - bx0;
+      bx0 += shift;
+      bx1 += shift;
+    } else if (side === "left" && bx1 > maxLeftX) {
+      const shift = maxLeftX - bx1;
+      bx0 += shift;
+      bx1 += shift;
+    }
+
+    const clampX = (x) => Math.max(0, Math.min(ROAD_COLS - 1, x));
+    bx0 = clampX(bx0);
+    bx1 = clampX(bx1);
 
     const visibleY0 = Math.max(by0, worldTopRow - 1);
     const visibleY1 = Math.min(by1, worldBottomRow);
@@ -320,7 +342,6 @@ function renderRoadScene() {
       ctx.fillRect(inner.x, inner.y, inner.w, inner.h);
     }
 
-    const side = b.side === "left" ? "left" : "right";
     const zoneX = (typeof b.interactX === 'number')
       ? b.interactX
       : (side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
@@ -391,7 +412,6 @@ function renderRoadScene() {
     ctx.strokeRect(zr.x + ctx.lineWidth * 0.5, zr.y + ctx.lineWidth * 0.5, zr.w - ctx.lineWidth, zr.h - ctx.lineWidth);
 
     // маленькая метка типа (чтобы визуально отличались)
-    ctx.fillStyle = ent.kind === "npc" ? "rgba(255,215,0,0.95)" : "rgba(34,197,94,0.95)";
     const tag = Math.max(2, Math.floor(xr.w * 0.14));
     ctx.fillRect(xr.x + 2, xr.y + 2, tag, tag);
 
