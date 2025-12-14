@@ -120,6 +120,8 @@
     item_map: "assets/items/item_map.png",
     item_pistol: "assets/items/item_pistol.png",
     item_rotten_sandwich: "assets/items/item_rotten_sandwich.png",
+    item_flashlight: "assets/items/item_flashlight.png",
+    item_backpack: "assets/items/item_backpack.png",
 
     /* ===== Props inside hub ===== */
     prop_trash: "assets/props/prop_trash.png",

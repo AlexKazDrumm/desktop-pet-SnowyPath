@@ -1,19 +1,85 @@
 // src/scenes/road/hitchhiker-event.js
 
+const HITCHHIKER_PAY = {
+  s1_h2: { type: "item", itemId: "flashlight", itemName: "Фонарик" },
+  s2_h2: { type: "item", itemId: "backpack", itemName: "Рюкзак" },
+  s2_h1: { type: "none" } // без денег, просто просит подвезти
+};
+
+const HITCHHIKER_TALK = {
+  s1_h1: {
+    ask: "Подкиньте до техникума, рюкзак уже тянет плечо.",
+    dest: "До техникума в соседнем городке, остановка у автостанции.",
+    about: "Первокурсник-электрик, еду после сессии домой.",
+    pay: "Денег мало, но отблагодарю скромно за бензин."
+  },
+  s1_h2: {
+    ask: "У вас случайно нет места до трассы на север?",
+    dest: "До выезда к северной трассе, там меня встретят.",
+    about: "Работаю инструктором по вождению, не люблю опаздывать.",
+    pay: "Могу отдать отличный фонарик — заменю им оплату."
+  },
+  s1_h3: {
+    ask: "Дотянете до поста ГАИ? У меня там друг ждёт.",
+    dest: "До поста ГАИ в конце сегмента, буквально пару километров.",
+    about: "Охранник склада, смена кончилась час назад.",
+    pay: "Заплачу честно, если довезёте без вопросов."
+  },
+  s1_h4: {
+    ask: "Сильный ветер, можно в вашу сторону?",
+    dest: "До поворота на лесопилку, там сверну.",
+    about: "Лесник, проверяю вышки связи.",
+    pay: "Заплачу немного и расскажу короткую байку."
+  },
+  s1_h5: {
+    ask: "Дружище, подкинь до мотеля — деловое дело.",
+    dest: "До мотеля на кольце, там встреча.",
+    about: "Говорит, что предприниматель, но не любит подробностей.",
+    pay: "Готов заплатить выше рынка, если не задавать вопросов."
+  },
+  s2_h1: {
+    ask: "Очень надо до развилки. Денег нет, но я тихий пассажир.",
+    dest: "До развилки у старого указателя, дальше пешком.",
+    about: "Еду к сестре, документы потерял.",
+    pay: "Заплатить не смогу, только спасибо и честное слово."
+  },
+  s2_h2: {
+    ask: "Донесёте до кафе у трассы?",
+    dest: "До придорожного кафе с вывеской «Марс» на трассе.",
+    about: "Фрилансер-фотограф, много хожу пешком.",
+    pay: "Отдам лишний рюкзак — почти новый."
+  },
+  s2_h3: {
+    ask: "Нужно к автовокзалу, времени мало.",
+    dest: "До городского автовокзала, платформы дальних рейсов.",
+    about: "Учёная на конференцию, ноутбук в рюкзаке.",
+    pay: "Заплачу как смогу, но без торга — время дороже."
+  },
+  s2_h4: {
+    ask: "Подбросите до заправки?",
+    dest: "До большой заправки с автомойкой.",
+    about: "Монтажник, смена начнётся через час.",
+    pay: "Заплачу нормально, если не опоздаю."
+  },
+  s2_h5: {
+    ask: "Нужно срочно в порт, заберу груз.",
+    dest: "До порта на реке, у складов.",
+    about: "Говорит, что логист, выглядит торопливым.",
+    pay: "Готов сыпануть наличными, если поедем быстро."
+  }
+};
+
 function triggerHitchhikerEvent(h) {
   if (!state.road) return;
   state.currentHitchhiker = h;
 
-  const title = `${h.name || "Автостопщик"}`;
-  const desc = `${h.description || "Просит подвезти."}`;
-  const base = Number(h.basePay || 0);
-  const minPay = Number(h.minPay || Math.max(0, base - 5));
-  const maxPay = Number(h.maxPay || (base + 10));
-  // Open dialog showing the *offer* line only — name/description are shown in HUD
-  // helper: show result line and wait for player to press "Далее" before finalizing entity
+  const payProfile = HITCHHIKER_PAY[h.id] || { type: "money" };
+  const base = payProfile.type === "none" ? 0 : Number(h.basePay || 0);
+  const minPay = payProfile.type === "none" ? 0 : Number(h.minPay || Math.max(0, base - 5));
+  const maxPay = payProfile.type === "none" ? 0 : Number(h.maxPay || (base + 10));
+
   function showResultLine(line) {
     state.lastMessage = String(line || "");
-    // single-step dialog: show result and a single "Далее" choice which finalizes the entity
     roadDialogOpen([state.lastMessage], [
       {
         id: "advance",
@@ -35,53 +101,143 @@ function triggerHitchhikerEvent(h) {
     ]);
   }
 
-  roadDialogOpen(
-    [`Он предлагает ${base}₽ (диапазон ${minPay}–${maxPay}).`],
-    [
-      {
-        id: "take_base",
-        label: `Подвезти за ${base}₽`,
-        onPick: () => {
-          adjustResources({ money: base });
-          showResultLine(`Вы подвезли пассажира и получили ${base}₽.`);
+  function getRewardLabel(amount) {
+    if (payProfile.type === "item") return `Отдать ${payProfile.itemName || "предмет"}`;
+    if (payProfile.type === "none") return "Ехать бесплатно";
+    return `${amount}₽`;
+  }
+
+  function grantReward(amount) {
+    if (payProfile.type === "item") {
+      if (typeof addInventoryItemById === "function" && payProfile.itemId) {
+        addInventoryItemById(payProfile.itemId, 1);
+      }
+      return `Пассажир отдал вам ${payProfile.itemName || "предмет"}.`;
+    }
+    if (payProfile.type === "none") {
+      return "Вы везёте его бесплатно. Он благодарит вас.";
+    }
+    adjustResources({ money: amount });
+    return `Вы получили ${amount}₽.`;
+  }
+
+  function openMainDialog() {
+    roadDialogOpen(
+      [`Хочет поехать за ${getRewardLabel(base)} (${getRewardLabel(minPay)}–${getRewardLabel(maxPay)}).`],
+      [
+        {
+          id: "talk",
+          label: "Поговорить",
+          onPick: () => openTalkDialog()
         },
+        {
+          id: "take_base",
+          label: `Подвезти за ${getRewardLabel(base)}`,
+          onPick: () => {
+            showResultLine(grantReward(base));
+          },
+        },
+        {
+          id: "bargain",
+          label: "Торговаться",
+          onPick: () => {
+            if (payProfile.type === "none") {
+              const success = Math.random() < 0.35;
+              if (success) {
+                const tip = randInt(1, 3);
+                adjustResources({ money: tip });
+                showResultLine(`Он находит пару монет. Вы получили ${tip}₽.`);
+              } else {
+                showResultLine("Просит подвезти бесплатно — денег нет.");
+              }
+              return;
+            }
+
+            if (payProfile.type === "item") {
+              const tip = Math.random() < 0.4 ? randInt(1, 3) : 0;
+              const msg = grantReward(base) + (tip ? ` Он накидывает ещё ${tip}₽.` : " Без доплаты.");
+              if (tip) adjustResources({ money: tip });
+              showResultLine(msg);
+              return;
+            }
+
+            const rnd = Math.random();
+            if (rnd < 0.6) {
+              const pay = randInt(base, maxPay);
+              showResultLine(grantReward(pay));
+            } else if (rnd < 0.8) {
+              const pay = minPay;
+              showResultLine(grantReward(pay));
+            } else {
+              showResultLine("Он отказывается платить больше.");
+            }
+          },
+        },
+        {
+          id: "discount",
+          label: "Сделать скидку",
+          onPick: () => {
+            if (payProfile.type === "none") {
+              showResultLine("Вы соглашаетесь везти бесплатно.");
+              return;
+            }
+            if (payProfile.type === "item") {
+              showResultLine(grantReward(base));
+              return;
+            }
+            const pay = randInt(minPay, base);
+            showResultLine(grantReward(pay));
+          },
+        },
+        {
+          id: "skip",
+          label: "Пропустить",
+          onPick: () => {
+            showResultLine("Вы проезжаете мимо.");
+          },
+        },
+      ]
+    );
+  }
+
+  function openTalkDialog() {
+    const info = HITCHHIKER_TALK[h.id] || {};
+    const ask = info.ask || "Куда тебя подбросить?";
+    const dest = info.dest || "До ближайшей развилки.";
+    const about = info.about || "Не любит рассказывать о себе.";
+    const pay = info.pay || "Обещает рассчитаться как сможет.";
+
+    roadDialogOpen([ask], [
+      {
+        id: "ask_dest",
+        label: "Куда тебе?",
+        onPick: () => {
+          roadDialogOpen([dest], [{ id: "back", label: "Назад", onPick: () => openTalkDialog() }]);
+        }
       },
       {
-        id: "bargain",
-        label: "Поторговаться",
+        id: "ask_about",
+        label: "Кто ты?",
         onPick: () => {
-          const rnd = Math.random();
-          if (rnd < 0.6) {
-            const pay = randInt(base, maxPay);
-            adjustResources({ money: pay });
-            showResultLine(`Торг успешен. Вы получили ${pay}₽.`);
-          } else if (rnd < 0.8) {
-            const pay = minPay;
-            adjustResources({ money: pay });
-            showResultLine(`Пассажир сбил цену. Вы получили ${pay}₽.`);
-          } else {
-            showResultLine("Пассажир обиделся и ушёл.");
-          }
-        },
+          roadDialogOpen([about], [{ id: "back", label: "Назад", onPick: () => openTalkDialog() }]);
+        }
       },
       {
-        id: "discount",
-        label: "Сделать скидку",
+        id: "ask_pay",
+        label: "Чем отплатишь?",
         onPick: () => {
-          const pay = randInt(minPay, base);
-          adjustResources({ money: pay });
-          showResultLine(`Вы дали скидку и получили ${pay}₽.`);
-        },
+          roadDialogOpen([pay], [{ id: "back", label: "Назад", onPick: () => openTalkDialog() }]);
+        }
       },
       {
-        id: "skip",
-        label: "Не останавливаться",
-        onPick: () => {
-          showResultLine("Вы проехали мимо.");
-        },
-      },
-    ]
-  );
+        id: "back_to_main",
+        label: "К выбору",
+        onPick: () => openMainDialog()
+      }
+    ]);
+  }
+
+  openMainDialog();
 }
 
 if (typeof window !== "undefined") {

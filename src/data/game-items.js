@@ -73,6 +73,26 @@
       stackable: true,
       maxStack: 2,
       tags: ["food", "trash"]
+    },
+
+    flashlight: {
+      id: "flashlight",
+      name: "Фонарик",
+      description: "Рабочий карманный фонарь — пригодится в ночной дороге.",
+      iconKey: "item_flashlight",
+      stackable: false,
+      maxStack: 1,
+      tags: ["utility"]
+    },
+
+    backpack: {
+      id: "backpack",
+      name: "Рюкзак",
+      description: "Простой рюкзак с пустыми отделениями. Можно сложить припасы.",
+      iconKey: "item_backpack",
+      stackable: false,
+      maxStack: 1,
+      tags: ["utility", "container"]
     }
   };
 
