@@ -25,7 +25,17 @@ function buildMapStatsText() {
   const fuel = (typeof state.fuel === "number") ? state.fuel : 0;
   const hunger = (typeof state.hunger === "number") ? state.hunger : 0;
   const fatigue = (typeof state.fatigue === "number") ? state.fatigue : 0;
-  return `Money: ${money}\nFuel:  ${fuel}\nHungr: ${hunger}\nFatig: ${fatigue}`;
+  const canLine = (typeof hasCanister === "function" && hasCanister())
+    ? `Canis: ${typeof getCanisterFuel === "function" ? getCanisterFuel() : 0}/${typeof CANISTER_CAPACITY === "number" ? CANISTER_CAPACITY : 20}`
+    : null;
+  let lines = [
+    `Money: ${money}`,
+    `Fuel:  ${fuel}`,
+    `Hungr: ${hunger}`,
+    `Fatig: ${fatigue}`
+  ];
+  if (canLine) lines.push(canLine);
+  return lines.join("\n");
 }
 
 function computeRouteInfoText() {

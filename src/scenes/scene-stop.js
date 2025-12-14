@@ -68,9 +68,27 @@ function handleStopCanvasClick(clientX, clientY) {
             }
           ], { lockMovement: true });
         } else {
-          openStopDialogVN([_getHoverTextForItem(it) || "Предмет"], [
-            { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
-          ], { lockMovement: true });
+          if (it.id === "canister") {
+            const car = getCurrentCarRect();
+            const nearCar = car ? isNearCar(car) : false;
+            if (!nearCar) {
+              openStopDialogVN(["Нужно быть рядом с машиной, чтобы использовать канистру."], [
+                { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
+              ], { lockMovement: true });
+            } else {
+              const moved = typeof transferCanisterToCar === "function" ? transferCanisterToCar() : 0;
+              const msg = moved > 0
+                ? `Перелито ${moved} топлива из канистры в бак.`
+                : "Не удалось перелить: бак полон или канистра пуста.";
+              openStopDialogVN([msg], [
+                { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
+              ], { lockMovement: true });
+            }
+          } else {
+            openStopDialogVN([_getHoverTextForItem(it) || "Предмет"], [
+              { id: "ok", label: "Ок", onPick: () => closeStopDialog() }
+            ], { lockMovement: true });
+          }
         }
         return;
       }

@@ -104,15 +104,32 @@ function _triggerBuildingInteraction(building) {
   if (building.type === "gas") {
     const amount = 10;
     const cost = 10;
+    const hasCan = typeof hasCanister === "function" && hasCanister();
+    if (hasCan && getCanisterFuel() < CANISTER_CAPACITY) {
+      choices.push({
+        id: "fill_canister",
+        label: "Наполнить канистру",
+        onPick: () => {
+          const res = typeof fillCanisterFromMoney === "function" ? fillCanisterFromMoney(1) : { filled: 0, cost: 0 };
+          if (!res.filled) {
+            alert("Не удалось: канистра полная или не хватает денег.");
+            return;
+          }
+          _finalizeBuildingChoice(building);
+        }
+      });
+    }
     choices.push({
       id: "refuel",
-      label: `Заправиться (+${amount} топлива за ${cost}₽)`,
+      label: `Заправить машину (+${amount} за ${cost}₽)`,
       onPick: () => {
         if (state.money < cost) {
           alert("Недостаточно денег для покупки топлива.");
           return;
         }
-        _finalizeBuildingChoice(building, () => adjustResources({ fuel: amount, money: -cost }));
+        const added = typeof addFuel === "function" ? addFuel(amount) : amount;
+        _finalizeBuildingChoice(building, () => adjustResources({ money: -cost, fuel: 0 }));
+        if (added <= 0) state.lastMessage = "Бак уже полон.";
       }
     });
   } else if (building.type === "food") {
@@ -165,12 +182,57 @@ function _triggerBuildingInteraction(building) {
   roadDialogOpen(lines, choices);
 }
 
+function _maybeHandleOutOfFuel() {
+  if (!state || !state.road) return false;
+  if (state.road._outOfFuel) return true;
+  if (state.fuel > 0) return false;
+
+  state.road._outOfFuel = true;
+  state.road.pausedForEvent = true;
+
+  const choices = [];
+  if (typeof hasCanister === "function" && hasCanister()) {
+    choices.push({
+      id: "use_canister",
+      label: "Использовать канистру",
+      onPick: () => {
+        const moved = typeof transferCanisterToCar === "function" ? transferCanisterToCar() : 0;
+        if (moved > 0 && state.fuel > 0) {
+          state.road.pausedForEvent = false;
+          state.road._outOfFuel = false;
+          roadDialogClose();
+          return;
+        }
+        alert("Канистра пуста или бак уже полон.");
+      }
+    });
+  }
+
+  choices.push({
+    id: "back_to_city",
+    label: "Вернуться в город",
+    onPick: () => {
+      state.road.active = false;
+      state.mode = "stop";
+      setScreen && setScreen("screen-stop");
+    }
+  });
+
+  roadDialogOpen(["Топливо закончилось. Машина встала."], choices);
+  return true;
+}
+
 function updateRoad(dt) {
   if (!state || state.mode !== "road") return;
 
   if (typeof tickStatFlash === "function") tickStatFlash(dt || 0);
 
   if (!state.road || !state.road.active) {
+    if (typeof renderRoadScene === "function") renderRoadScene(dt);
+    return;
+  }
+
+  if (_maybeHandleOutOfFuel()) {
     if (typeof renderRoadScene === "function") renderRoadScene(dt);
     return;
   }

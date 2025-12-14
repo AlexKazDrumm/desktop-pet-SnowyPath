@@ -58,6 +58,17 @@ function handleRoadCanvasClick(clientX, clientY) {
   if (r.kind === "inv_item") {
     const it = r.payload && r.payload.item ? r.payload.item : null;
     if (!it) return;
+    // Канистра: перелить топливо в бак прямо на дороге
+    if (it.id === "canister" && typeof transferCanisterToCar === "function") {
+      const moved = transferCanisterToCar();
+      const line = moved > 0
+        ? `Перелито ${moved} топлива из канистры в бак.`
+        : "Не удалось перелить: бак полон или канистра пуста.";
+      if (typeof window.roadDialogOpen === "function") {
+        window.roadDialogOpen([line], [{ id: "ok", label: "Ок", onPick: () => window.roadDialogClose && window.roadDialogClose() }]);
+      }
+      return;
+    }
     // fallback behavior: open a simple dialog for items
     if (typeof window.roadDialogOpen === "function") {
       window.roadDialogOpen([_getHoverTextForItem(it) || "Предмет"], [{ id: "ok", label: "Ок", onPick: () => window.roadDialogClose && window.roadDialogClose() }]);

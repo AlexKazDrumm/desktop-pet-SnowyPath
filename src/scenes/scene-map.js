@@ -71,8 +71,7 @@ function tryStartTravelToSelected() {
 
   const dist = distanceFromToPoints(cur, sel);
   if (dist > state.fuel) {
-    showMapToast("Недостаточно топлива для выбранной точки.");
-    return;
+    showMapToast("Топлива мало — можете закончить поездку на трассе.");
   }
 
   try {

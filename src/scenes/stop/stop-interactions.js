@@ -19,6 +19,16 @@ function isNearCar(car) {
   );
 }
 
+function getCurrentCarRect() {
+  if (!stopCanvas) return null;
+  const hubCfg = getCurrentHubGridConfig();
+  if (!hubCfg) return null;
+  const stage = computeStageLayout(stopCanvas.width, stopCanvas.height);
+  const cityLayout = deriveCityLayout(stage);
+  const parsed = parseHubAscii(hubCfg);
+  return computeHubCarFromCell(parsed.carCell, cityLayout);
+}
+
 function collidesWithCar(px, py, car) {
   return (
     px >= car.x &&
@@ -314,14 +324,45 @@ function handleHubInteract() {
   const nearPoi = buildings.find((b) => isNearPOI(b));
   if (!nearPoi) return;
 
-  if (nearPoi.type === "gas") {
-    const amount = 10;
-    const cost = amount * 1;
-    if (state.money < cost) {
-      alert("Недостаточно денег для покупки топлива.");
-      return;
+    if (nearPoi.type === "gas") {
+      const rate = 1; // 1₽ за 1 топливо
+      const hasCan = typeof hasCanister === "function" && hasCanister();
+      const options = [
+        {
+          id: "fill_car",
+          label: "Заправить машину (+10)",
+          onPick: () => {
+            const added = typeof addFuel === "function" ? addFuel(10) : 10;
+            const cost = Math.ceil(added * rate);
+            if (added <= 0) {
+              alert("Бак уже полон.");
+              return;
+            }
+            if (cost > state.money) {
+              alert("Недостаточно денег для топлива.");
+              return;
+            }
+            adjustResources({ money: -cost });
+            closeStopDialog();
+          }
+        }
+      ];
+    if (hasCan) {
+      options.unshift({
+        id: "fill_can",
+        label: "Наполнить канистру",
+        onPick: () => {
+          const result = typeof fillCanisterFromMoney === "function" ? fillCanisterFromMoney(rate) : { filled: 0, cost: 0 };
+          if (!result.filled) {
+            alert("Канистра уже полная или не хватает денег.");
+          } else {
+            closeStopDialog();
+          }
+        }
+      });
     }
-    adjustResources({ fuel: amount, money: -cost });
+    options.push({ id: "cancel", label: "Отмена", onPick: () => closeStopDialog() });
+    openStopDialogVN(["Что заправляем?"], options, { lockMovement: true });
     return;
   }
 

@@ -6,6 +6,7 @@ let selectedCharacterId = "tourist";
 const STAT_KEYS = ["money", "fuel", "hunger", "fatigue"];
 const STAT_LOW_THRESHOLD = 26;
 const STAT_HIGH_THRESHOLD = 85;
+const CANISTER_CAPACITY = 20;
 
 function _ensureStatFlashState() {
   if (typeof stopHudState !== "object" || !stopHudState) return null;
@@ -91,6 +92,65 @@ function applyStatDeltas({ fuel = 0, money = 0, hunger = 0, fatigue = 0 }, opts)
   return applied;
 }
 
+function hasCanister() {
+  const inv = Array.isArray(state.inventory) ? state.inventory : [];
+  return inv.some((it) => it && it.id === "canister");
+}
+
+function getMaxFuel() {
+  const max = state && state.characterConfig && typeof state.characterConfig.baseFuel === "number"
+    ? state.characterConfig.baseFuel
+    : 100;
+  return Math.max(1, max);
+}
+
+function getCanisterFuel() {
+  const v = typeof state.canisterFuel === "number" ? state.canisterFuel : 0;
+  return clamp(v, 0, CANISTER_CAPACITY);
+}
+
+function setCanisterFuel(v) {
+  state.canisterFuel = clamp(v, 0, CANISTER_CAPACITY);
+}
+
+function transferCanisterToCar() {
+  if (!hasCanister()) return 0;
+  const can = getCanisterFuel();
+  if (can <= 0) return 0;
+  const maxFuel = getMaxFuel();
+  const free = Math.max(0, maxFuel - state.fuel);
+  const moved = Math.min(free, can);
+  if (moved > 0) {
+    state.fuel += moved;
+    setCanisterFuel(can - moved);
+    renderStats && renderStats();
+  }
+  return moved;
+}
+
+function fillCanisterFromMoney(costPerUnit = 1) {
+  if (!hasCanister()) return { filled: 0, cost: 0 };
+  const can = getCanisterFuel();
+  const need = Math.max(0, CANISTER_CAPACITY - can);
+  if (need <= 0) return { filled: 0, cost: 0 };
+  const availableUnits = Math.floor(Math.max(0, state.money) / Math.max(0.0001, costPerUnit));
+  const fillUnits = Math.min(need, availableUnits);
+  const cost = fillUnits * costPerUnit;
+  if (fillUnits > 0) {
+    state.money -= cost;
+    setCanisterFuel(can + fillUnits);
+    renderStats && renderStats();
+  }
+  return { filled: fillUnits, cost };
+}
+
+function addFuel(amount) {
+  const maxFuel = getMaxFuel();
+  const prev = state.fuel;
+  state.fuel = clamp(state.fuel + amount, 0, maxFuel);
+  return state.fuel - prev;
+}
+
 /**
  * Установить выбранного персонажа из меню
  * @param {CharacterId} id
@@ -125,6 +185,7 @@ function createInitialState() {
 
     // Ресурсы
     fuel: char.baseFuel,
+    canisterFuel: 0,
     money: char.baseMoney,
     hunger: char.baseHunger,
     fatigue: char.baseFatigue,
