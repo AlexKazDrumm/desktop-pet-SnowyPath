@@ -4,6 +4,29 @@ function _clamp(v, a, b) {
   return Math.max(a, Math.min(b, v));
 }
 
+function _carHitHalf() {
+  const frac = (typeof ROAD_CAR_HITBOX_FRAC === "number") ? ROAD_CAR_HITBOX_FRAC : 0.75;
+  return Math.max(0.1, Math.min(0.95, frac)) * 0.5;
+}
+
+function _carBoundsX(carX) {
+  const half = _carHitHalf();
+  const center = (typeof carX === "number" ? carX : ROAD_CAR_START_X) + 0.5;
+  return {
+    center,
+    half,
+    left: center - half,
+    right: center + half,
+  };
+}
+
+function _clampCarX(carX) {
+  const half = _carHitHalf();
+  const minX = ROAD_X0 + half - 0.5;
+  const maxX = ROAD_X1 + 0.5 - half;
+  return _clamp(carX, minX, maxX);
+}
+
 function _finalizeBuildingChoice(building, afterAction) {
   try {
     if (building) {
@@ -106,6 +129,7 @@ function updateRoad(dt) {
   // ===== ИНИТ =====
   if (typeof state.road.carX !== "number") state.road.carX = ROAD_CAR_START_X;
   if (typeof state.road.carScreenRow !== "number") state.road.carScreenRow = ROAD_CAR_SCREEN_ROW;
+  state.road.carX = _clampCarX(state.road.carX);
 
   // угол руления (радианы): 0 = прямо; отриц = влево; полож = вправо
   if (typeof state.road.carAngle !== "number") state.road.carAngle = 0;
@@ -149,12 +173,14 @@ function updateRoad(dt) {
   state.road.carX += vx * dt;
 
   // коллизия: с дороги съезжать нельзя (дорога x=6..9)
-  state.road.carX = _clamp(state.road.carX, ROAD_X0, ROAD_X1);
+  const minCarX = ROAD_X0 + _carHitHalf() - 0.5;
+  const maxCarX = ROAD_X1 + 0.5 - _carHitHalf();
+  state.road.carX = _clamp(state.road.carX, minCarX, maxCarX);
 
   // если упёрлись в край — сообщаем (но не спамим каждый кадр)
   if (prevX !== state.road.carX) {
-    const hitLeft = state.road.carX === ROAD_X0 && vx < 0;
-    const hitRight = state.road.carX === ROAD_X1 && vx > 0;
+    const hitLeft = state.road.carX <= minCarX + 1e-4 && vx < 0;
+    const hitRight = state.road.carX >= maxCarX - 1e-4 && vx > 0;
     if (hitLeft || hitRight) {
       if (!state.road._edgeMsgCooldown || state.road._edgeMsgCooldown <= 0) {
         state.lastMessage = "Съезжать с дороги нельзя.";
@@ -216,8 +242,9 @@ function updateRoad(dt) {
     const zoneFrac = (typeof ROAD_INTERACT_FRAC === 'number') ? ROAD_INTERACT_FRAC : 0.28;
     const zoneStart = side === "left" ? zoneX : zoneX + (1 - zoneFrac);
     const zoneEnd = side === "left" ? zoneX + zoneFrac : zoneX + 1;
-    const carLeft = (state.road.carX || 0);
-    const carRight = carLeft + 1;
+    const carBox = _carBoundsX(state.road.carX);
+    const carLeft = carBox.left;
+    const carRight = carBox.right;
 
     const overlapsX = (carRight > zoneStart) && (carLeft < zoneEnd);
 
@@ -247,8 +274,9 @@ function updateRoad(dt) {
     const zoneFrac = (typeof ROAD_INTERACT_FRAC === 'number') ? ROAD_INTERACT_FRAC : 0.28;
     const zoneStart = side === "left" ? zoneX : zoneX + (1 - zoneFrac);
     const zoneEnd = side === "left" ? zoneX + zoneFrac : zoneX + 1;
-    const carLeft = (state.road.carX || 0);
-    const carRight = carLeft + 1;
+    const carBox = _carBoundsX(state.road.carX);
+    const carLeft = carBox.left;
+    const carRight = carBox.right;
     const overlapsX = (carRight > zoneStart) && (carLeft < zoneEnd);
     const withinRows = carWorldFloat >= (b.y0 - 0.25) && carWorldFloat <= (b.y1 + 0.25);
 

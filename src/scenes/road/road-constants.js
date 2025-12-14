@@ -5,6 +5,8 @@ const ROAD_VIEW_ROWS = 6;
 const ROAD_MENU_ROWS = 2;
 const ROAD_TOTAL_ROWS = ROAD_VIEW_ROWS + ROAD_MENU_ROWS;
 const ROAD_CAR_SCREEN_ROW = ROAD_VIEW_ROWS - 1;
+const ROAD_CAR_SIZE_FRAC = 0.75; // target visual size of the car sprite vs cell
+const ROAD_CAR_HITBOX_FRAC = 0.75; // collision box vs cell (kept in sync with visuals)
 
 // средние 4 столбца — дорога (1-based 7..10 => 0-based 6..9)
 const ROAD_X0 = 6;
@@ -32,6 +34,8 @@ if (typeof window !== "undefined") {
   window.ROAD_MENU_ROWS = ROAD_MENU_ROWS;
   window.ROAD_TOTAL_ROWS = ROAD_TOTAL_ROWS;
   window.ROAD_CAR_SCREEN_ROW = ROAD_CAR_SCREEN_ROW;
+  window.ROAD_CAR_SIZE_FRAC = ROAD_CAR_SIZE_FRAC;
+  window.ROAD_CAR_HITBOX_FRAC = ROAD_CAR_HITBOX_FRAC;
 
   window.ROAD_X0 = ROAD_X0;
   window.ROAD_X1 = ROAD_X1;

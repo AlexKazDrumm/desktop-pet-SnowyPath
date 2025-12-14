@@ -33,6 +33,18 @@ function computeRoadStageLayout() {
   };
 }
 
+function _getCarHitHalf() {
+  if (typeof _carHitHalf === "function") return _carHitHalf();
+  const frac = (typeof ROAD_CAR_HITBOX_FRAC === "number") ? ROAD_CAR_HITBOX_FRAC : 0.75;
+  return Math.max(0.1, Math.min(0.95, frac)) * 0.5;
+}
+
+function _getCarBoundsX(carX) {
+  const half = _getCarHitHalf();
+  const center = (typeof carX === "number" ? carX : ROAD_CAR_START_X) + 0.5;
+  return { center, half, left: center - half, right: center + half };
+}
+
 // hit regions for dialog
 function _clearRoadHudRegions() {
   const regs = typeof getRoadHudHitRegions === "function" ? getRoadHudHitRegions() : null;
@@ -159,22 +171,36 @@ function _drawCar(ctx, carRect, carAngleRad) {
   let carSprite = (sprites && sprites[personalKey]) ? sprites[personalKey] : null;
   if (!carSprite) carSprite = (sprites && sprites.car) ? sprites.car : null;
 
-  const pad = Math.floor(carRect.w * 0.08);
-  const maxH = Math.max(1, Math.floor(carRect.h * 0.5));
-  const usableW = Math.max(1, carRect.w - pad * 2);
-  const usableH = Math.max(1, Math.min(maxH, carRect.h - pad * 2));
+  const sizeFrac = (typeof ROAD_CAR_SIZE_FRAC === "number") ? ROAD_CAR_SIZE_FRAC : 0.75;
+  const inset = Math.floor(Math.min(carRect.w, carRect.h) * 0.02);
+  const usableW = Math.max(1, carRect.w - inset * 2);
+  const usableH = Math.max(1, carRect.h - inset * 2);
+  const maxSize = Math.max(1, Math.floor(Math.min(usableW, usableH) * sizeFrac));
 
-  let dw = usableW;
-  let dh = usableH;
+  let dw = maxSize;
+  let dh = maxSize;
 
   if (carSprite && _hasSprite(carSprite)) {
     const aspect = carSprite.naturalWidth / Math.max(1, carSprite.naturalHeight);
-    dw = Math.min(usableW, Math.floor(usableH * aspect));
-    dh = Math.min(usableH, Math.floor(dw / aspect));
+    if (aspect >= 1) {
+      dw = Math.min(maxSize, usableW);
+      dh = Math.max(1, Math.floor(dw / aspect));
+      if (dh > maxSize) {
+        dh = maxSize;
+        dw = Math.max(1, Math.floor(dh * aspect));
+      }
+    } else {
+      dh = Math.min(maxSize, usableH);
+      dw = Math.max(1, Math.floor(dh * aspect));
+      if (dw > maxSize) {
+        dw = maxSize;
+        dh = Math.max(1, Math.floor(dw / aspect));
+      }
+    }
   } else {
     // fallback rectangle keeps a car-like silhouette even without a sprite
-    dw = Math.min(usableW, Math.floor(usableH * 2));
-    dh = usableH;
+    dw = Math.min(maxSize, usableW);
+    dh = Math.min(maxSize, usableH);
   }
 
   const dx = carRect.x + Math.floor((carRect.w - dw) / 2);
@@ -243,6 +269,7 @@ function renderRoadScene() {
     w: layout.cellW,
     h: layout.cellH,
   };
+  const carBounds = _getCarBoundsX(cxF);
 
   // ===== draw tiles (16x6) =====
   // apply fractional vertical offset for smooth sliding (no rounding)
@@ -302,8 +329,8 @@ function renderRoadScene() {
   // ===== roadside buildings =====
   const buildings = Array.isArray(state.road.buildings) ? state.road.buildings : [];
   const carWorldFloat = scroll + (viewRows - 1 - carScreenRow);
-  const carLeftF = (state.road.carX || 0);
-  const carRightF = carLeftF + 1;
+  const carLeftF = carBounds.left;
+  const carRightF = carBounds.right;
 
   for (const b of buildings) {
     if (!b || typeof b.x0 !== "number" || typeof b.y0 !== "number") continue;
@@ -414,8 +441,8 @@ function renderRoadScene() {
       : (side === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
     const zr = _computeZoneRect(layout, zoneX, sy, spriteH / layout.cellH, side, "center");
     const bounds = _computeZoneBounds(zoneX, side);
-    const carLeft = (state.road.carX || 0);
-    const carRight = carLeft + 1;
+    const carLeft = carBounds.left;
+    const carRight = carBounds.right;
     const overlapsX = carRight > bounds.start && carLeft < bounds.end;
     const strong = overlapsX && carWorldRow === row;
 
@@ -474,8 +501,8 @@ function renderRoadScene() {
             ? e.xZone
             : (eSide === "left" ? ROAD_LEFT_INTERACT_X : ROAD_RIGHT_INTERACT_X);
           const bounds = _computeZoneBounds(zoneX, eSide);
-          const carLeft = (state.road.carX || 0);
-          const carRight = carLeft + 1;
+          const carLeft = carBounds.left;
+          const carRight = carBounds.right;
           return carRight > bounds.start && carLeft < bounds.end;
         }) : null);
       const nearbyBuilding = (state.road._activeBuildingId && Array.isArray(state.road.buildings))
