@@ -67,19 +67,24 @@ function _hasSprite(img) {
 }
 
 function _getHitchhikerSprite(ent) {
-  // 1) персональный спрайт по id (если когда-нибудь появится ассет)
+  // hitchhiker sprite in ????: ?????????? ?????? ????-?????? NPC (????? ?? ???????????? UI-????????)
+  if (sprites && sprites.prop_npc && _hasSprite(sprites.prop_npc)) return sprites.prop_npc;
+  if (sprites && sprites.default_npc && _hasSprite(sprites.default_npc)) return sprites.default_npc;
+  return null;
+}
+
+
+function _getHitchhikerAvatar(ent) {
   const hh = ent && ent.hitchhiker ? ent.hitchhiker : null;
   const personalKey = hh && hh.id ? `hitchhiker_${hh.id}` : "";
   if (personalKey && sprites && sprites[personalKey] && _hasSprite(sprites[personalKey])) {
     return sprites[personalKey];
   }
-
-  // 2) общий hitchhiker (у тебя сейчас он уже фолбечится на default_npc через game-sprites.js)
-  if (sprites && sprites.hitchhiker && _hasSprite(sprites.hitchhiker)) return sprites.hitchhiker;
-
-  // 3) дефолтный npc
-  if (sprites && sprites.default_npc && _hasSprite(sprites.default_npc)) return sprites.default_npc;
-
+  if (sprites && sprites.hitchhiker_avatar_default && sprites.hitchhiker_avatar_default.src) {
+    return sprites.hitchhiker_avatar_default;
+  }
+  if (sprites && sprites.hitchhiker && sprites.hitchhiker.src) return sprites.hitchhiker;
+  if (sprites && sprites.default_npc && sprites.default_npc.src) return sprites.default_npc;
   return null;
 }
 
@@ -487,8 +492,8 @@ function renderRoadScene() {
     window.stopHudState = window.stopHudState || {};
     if (state.currentHitchhiker) {
       const hh = state.currentHitchhiker;
-      const spr = _getHitchhikerSprite({ hitchhiker: hh });
-      window.stopHudState.interactAvatar = spr && spr.src ? { kind: "npc", src: spr.src } : { kind: "prop", src: getDefaultAvatarSrc("prop") };
+      const avatar = _getHitchhikerAvatar({ hitchhiker: hh });
+      window.stopHudState.interactAvatar = avatar && avatar.src ? { kind: "npc", src: avatar.src } : { kind: "prop", src: getDefaultAvatarSrc("prop") };
       window.stopHudState.interactTitle = hh.name || "Пассажир";
       window.stopHudState.interactHint = hh.description || "";
     } else {
@@ -509,8 +514,8 @@ function renderRoadScene() {
         ? state.road.buildings.find((b) => b && b.id === state.road._activeBuildingId)
         : null;
       if (nearby) {
-        const spr = nearby.kind === "hitchhiker" ? _getHitchhikerSprite(nearby) : _getNpcSprite();
-        window.stopHudState.interactAvatar = spr && spr.src ? { kind: "npc", src: spr.src } : { kind: "prop", src: getDefaultAvatarSrc("prop") };
+        const avatar = nearby.kind === "hitchhiker" ? _getHitchhikerAvatar(nearby) : _getNpcSprite();
+        window.stopHudState.interactAvatar = avatar && avatar.src ? { kind: "npc", src: avatar.src } : { kind: "prop", src: getDefaultAvatarSrc("prop") };
         if (nearby.hitchhiker) {
           window.stopHudState.interactTitle = nearby.hitchhiker.name || "Пассажир";
           window.stopHudState.interactHint = nearby.hitchhiker.description || "";

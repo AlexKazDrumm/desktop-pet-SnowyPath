@@ -9,13 +9,13 @@ window.hitchhikers = [
   // S1
   { id: "s1_h1", segmentIndex: 0, name: "Студент с рюкзаком",           basePay: 5,  minPay: 4,  maxPay: 7,  dangerLevel: "none",        description: "Просит довезти до следующего городка." },
   { id: "s1_h2", segmentIndex: 0, name: "Рабочий в спецовке",           basePay: 6,  minPay: 5,  maxPay: 8,  dangerLevel: "none",        description: "Возвращается после смены." },
-  { id: "s1_h3", segmentIndex: 0, name: "Молодая пара",                 basePay: 10, minPay: 8,  maxPay: 13, dangerLevel: "none",        description: "Едут на мероприятие." },
-  { id: "s1_h4", segmentIndex: 0, name: "Уставший клерк",               basePay: 12, minPay: 9,  maxPay: 15, dangerLevel: "none",        description: "Задержался на работе." },
-  { id: "s1_h5", segmentIndex: 0, name: "Слишком улыбчивый тип",        basePay: 20, minPay: 14, maxPay: 28, dangerLevel: "suspicious",  description: "Слишком настойчиво хочет поехать именно с вами." },
+  { id: "s1_h3", segmentIndex: 0, name: "Младший лейтинант",            basePay: 10, minPay: 8,  maxPay: 13, dangerLevel: "none",        description: "Едут на мероприятие." },
+  { id: "s1_h4", segmentIndex: 0, name: "Алёна Ран",                    basePay: 12, minPay: 9,  maxPay: 15, dangerLevel: "none",        description: "Задержался на работе." },
+  { id: "s1_h5", segmentIndex: 0, name: "Улыбчивый парень",             basePay: 20, minPay: 14, maxPay: 28, dangerLevel: "suspicious",  description: "Слишком настойчиво хочет поехать именно с вами." },
 
   // S2
   { id: "s2_h1", segmentIndex: 1, name: "Парень с гитарой",             basePay: 5,  minPay: 4,  maxPay: 7,  dangerLevel: "none",        description: "Едет выступать." },
-  { id: "s2_h2", segmentIndex: 1, name: "Местный фермер",               basePay: 7,  minPay: 5,  maxPay: 9,  dangerLevel: "none",        description: "Рассказывает про урожай." },
+  { id: "s2_h2", segmentIndex: 1, name: "Аля Бетрова",                  basePay: 7,  minPay: 5,  maxPay: 9,  dangerLevel: "none",        description: "Рассказывает про урожай." },
   { id: "s2_h3", segmentIndex: 1, name: "Коммивояжёр",                  basePay: 11, minPay: 9,  maxPay: 14, dangerLevel: "none",        description: "Демонстрирует товары." },
   { id: "s2_h4", segmentIndex: 1, name: "Бухгалтер",                    basePay: 13, minPay: 10, maxPay: 16, dangerLevel: "none",        description: "Жалуется на отчёты." },
   { id: "s2_h5", segmentIndex: 1, name: "Чисто одетый мужчина",         basePay: 22, minPay: 15, maxPay: 30, dangerLevel: "suspicious",  description: "Почти не говорит о себе." },

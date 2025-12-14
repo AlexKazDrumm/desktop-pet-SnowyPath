@@ -49,6 +49,7 @@
 
     // Раньше было assets/hitchhiker.png (его у тебя НЕТ)
     hitchhiker: "assets/avatars/default_npc.png",
+    hitchhiker_avatar_default: "assets/avatars/default_npc.png",
 
     // map_point*.png у тебя тоже НЕТ — ставим плейсхолдер, чтобы игра не падала.
     // mapPoint: "assets/avatars/default_prop.png",
@@ -105,7 +106,7 @@
     // Автарки автостопщиков по id (используются и в дороге, и в HUD)
     hitchhiker_s1_h1: "assets/avatars/hitchhikers/s1_h1.png",
     hitchhiker_s1_h2: "assets/avatars/hitchhikers/s1_h2.png",
-    hitchhiker_s1_h3: "assets/avatars/hitchhikers/s1_h3.png",
+    hitchhiker_s1_h3: "assets/avatars/hitchhikers/s1_h3.png.png",
     hitchhiker_s1_h4: "assets/avatars/hitchhikers/s1_h4.png",
     hitchhiker_s1_h5: "assets/avatars/hitchhikers/s1_h5.png",
     hitchhiker_s2_h1: "assets/avatars/hitchhikers/s2_h1.png",

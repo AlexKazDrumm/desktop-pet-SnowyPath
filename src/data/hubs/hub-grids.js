@@ -71,7 +71,7 @@ window.hubGridConfigs = [
       {
         id: "npc_instructor_gas",
         kind: "npc",
-        label: "Местный",
+        label: "Работник заправки",
         hint: "E — поговорить",
         cx: 3,
         cy: 1,

@@ -10,7 +10,7 @@ function openHub0NpcIntroDialog() {
 
   if (!D || typeof D.hub0Intro !== "function") {
     openStopDialogVN(
-      ["Местный: “Привет.”", "“Следи за ресурсами.”"],
+      ["Работник заправки: “Привет.”", "“Следи за ресурсами.”"],
       [{ id: "ok", label: "Ок", onPick: () => closeStopDialog() }],
       { lockMovement: true }
     );
@@ -53,7 +53,7 @@ function openNpcGenericDialog() {
 
   if (!root) {
     openStopDialogVN(
-      ["Местный: “Привет.”"],
+      ["Работник заправки: “Привет.”"],
       [{ id: "ok", label: "Ок", onPick: () => closeStopDialog() }],
       { lockMovement: true }
     );
