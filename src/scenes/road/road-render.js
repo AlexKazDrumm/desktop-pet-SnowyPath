@@ -535,15 +535,12 @@ function renderRoadScene() {
     window.stopHudState.playerAvatarSrc = (cfg && cfg.avatarKey) ? getAvatarSrcByKey(cfg.avatarKey) : getDefaultAvatarSrc("player");
 
     // stats text
-    if (typeof buildStopStatsText === "function") {
-      window.stopHudState.statsText = buildStopStatsText();
-    } else {
-      const money = typeof state.money === "number" ? state.money : 0;
-      const fuel = typeof state.fuel === "number" ? state.fuel : 0;
-      const hunger = typeof state.hunger === "number" ? state.hunger : 0;
-      const fatigue = typeof state.fatigue === "number" ? state.fatigue : 0;
-      window.stopHudState.statsText = `Money: ${money}\nFuel:  ${fuel}\nHungr: ${hunger}\nFatig: ${fatigue}`;
-    }
+    // Road HUD: always show whole numbers (round) to avoid long fractions during travel drain
+    const money = Math.round(typeof state.money === "number" ? state.money : 0);
+    const fuel = Math.round(typeof state.fuel === "number" ? state.fuel : 0);
+    const hunger = Math.round(typeof state.hunger === "number" ? state.hunger : 0);
+    const fatigue = Math.round(typeof state.fatigue === "number" ? state.fatigue : 0);
+    window.stopHudState.statsText = `Money: ${money}\nFuel:  ${fuel}\nHungr: ${hunger}\nFatig: ${fatigue}`;
 
     // controls text
     window.stopHudState.controlsText = window.stopHudState.controlsTextDefault || "";
@@ -602,6 +599,13 @@ function renderRoadScene() {
   const fontSize = Math.max(9, Math.floor((stage ? stage.cellSize : layout.cellH) * 0.16));
   const lineHeight = Math.max(11, Math.floor((stage ? stage.cellSize : layout.cellH) * 0.20));
   const padding = 4;
+  const statValues = {
+    money: typeof state.money === "number" ? state.money : 0,
+    fuel: typeof state.fuel === "number" ? state.fuel : 0,
+    hunger: typeof state.hunger === "number" ? state.hunger : 0,
+    fatigue: typeof state.fatigue === "number" ? state.fatigue : 0
+  };
+  const keyMap = ["money", "fuel", "hunger", "fatigue"];
 
   ctx.save();
   ctx.beginPath();
@@ -617,7 +621,12 @@ function renderRoadScene() {
 
   for (let i = 0; i < statLines.length; i++) {
     const line = statLines[i] || "";
-    ctx.fillStyle = "#e5e7eb";
+    let color = "#e5e7eb";
+    const key = keyMap[i];
+    if (key && typeof getStatColor === "function") {
+      color = getStatColor(key, statValues[key]);
+    }
+    ctx.fillStyle = color;
     ctx.fillText(line, x, y);
     y += lineHeight;
     if (y > rStats.y + rStats.h) break;

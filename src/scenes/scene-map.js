@@ -91,12 +91,6 @@ function tryStartTravelToSelected() {
     const hungerLoss = totalHungerLoss * (char && char.hungerLossMultiplier ? char.hungerLossMultiplier : 1);
     const fatigueLoss = totalFatigueLoss * (char && char.fatigueLossMultiplier ? char.fatigueLossMultiplier : 1);
 
-    // apply immediate costs
-    adjustResources({ fuel: -dist, hunger: -hungerLoss, fatigue: -fatigueLoss });
-
-    if (state.fuel < 0) state.fuel = 0;
-    if (checkFailConditions && checkFailConditions()) return;
-
     // init road state
     state.road = state.road || {};
     state.road.active = true;
@@ -104,6 +98,20 @@ function tryStartTravelToSelected() {
     state.road.toPoint = sel;
     state.road.distanceTotal = dist;
     state.road.distanceTravelled = 0;
+    state.road.consumptionPlan = {
+      total: {
+        fuel: dist,
+        hunger: hungerLoss,
+        fatigue: fatigueLoss
+      },
+      used: { fuel: 0, hunger: 0, fatigue: 0 }
+    };
+    state.road._lastDomStats = {
+      fuel: Math.floor(state.fuel),
+      hunger: Math.floor(state.hunger),
+      fatigue: Math.floor(state.fatigue),
+      money: Math.floor(state.money)
+    };
     state.road.pausedForEvent = false;
     state.road.hitchhikerEvents = [];
     state.road.carX = ROAD_CAR_START_X;

@@ -27,6 +27,59 @@ function _clampCarX(carX) {
   return _clamp(carX, minX, maxX);
 }
 
+function _applyRoadTravelConsumption(prevScroll, newScroll, dt) {
+  if (!state || !state.road || !state.road.consumptionPlan) return false;
+  const totalDist = Math.max(0.0001, state.road.distanceTotal || 0);
+  const prevProgress = _clamp(prevScroll / totalDist, 0, 1);
+  const progress = _clamp(newScroll / totalDist, 0, 1);
+  if (progress <= prevProgress) return false;
+
+  const plan = state.road.consumptionPlan;
+  const totals = plan.total || plan;
+  const used = plan.used || (plan.used = { fuel: 0, hunger: 0, fatigue: 0 });
+
+  const targets = {
+    fuel: totals.fuel * progress,
+    hunger: totals.hunger * progress,
+    fatigue: totals.fatigue * progress
+  };
+
+  const deltas = {
+    fuel: -(targets.fuel - (used.fuel || 0)),
+    hunger: -(targets.hunger - (used.hunger || 0)),
+    fatigue: -(targets.fatigue - (used.fatigue || 0))
+  };
+
+  if (deltas.fuel || deltas.hunger || deltas.fatigue) {
+    const applied = (typeof applyStatDeltas === "function")
+      ? applyStatDeltas(deltas, { skipFlash: true, skipRender: true })
+      : deltas;
+
+    used.fuel += Math.abs(applied.fuel || 0);
+    used.hunger += Math.abs(applied.hunger || 0);
+    used.fatigue += Math.abs(applied.fatigue || 0);
+
+    state.road._statsDirty = true;
+    if (typeof checkFailConditions === "function" && checkFailConditions()) return true;
+  }
+
+  return false;
+}
+
+function _maybeRenderStatsFromRoad() {
+  if (!state || !state.road) return;
+  const snap = {
+    fuel: Math.floor(state.fuel),
+    hunger: Math.floor(state.hunger),
+    fatigue: Math.floor(state.fatigue),
+    money: Math.floor(state.money)
+  };
+  const prev = state.road._lastDomStats || {};
+  const changed = snap.fuel !== prev.fuel || snap.hunger !== prev.hunger || snap.fatigue !== prev.fatigue || snap.money !== prev.money;
+  if (changed && typeof renderStats === "function") renderStats();
+  state.road._lastDomStats = snap;
+}
+
 function _finalizeBuildingChoice(building, afterAction) {
   try {
     if (building) {
@@ -115,14 +168,16 @@ function _triggerBuildingInteraction(building) {
 function updateRoad(dt) {
   if (!state || state.mode !== "road") return;
 
+  if (typeof tickStatFlash === "function") tickStatFlash(dt || 0);
+
   if (!state.road || !state.road.active) {
-    if (typeof renderRoadScene === "function") renderRoadScene();
+    if (typeof renderRoadScene === "function") renderRoadScene(dt);
     return;
   }
 
   // если диалог/событие — не едем
   if (state.road.pausedForEvent || (state.road.dialog && state.road.dialog.open)) {
-    if (typeof renderRoadScene === "function") renderRoadScene();
+    if (typeof renderRoadScene === "function") renderRoadScene(dt);
     return;
   }
 
@@ -194,9 +249,14 @@ function updateRoad(dt) {
 
   // ===== ДВИЖЕНИЕ ВПЕРЁД: скролл =====
   if (typeof state.road.scroll !== "number") state.road.scroll = 0;
+  const prevScroll = state.road.scroll;
 
   // интегрируем продольную компоненту скорости напрямую — даём плавный float-scroll
   state.road.scroll += vy * dt;
+  state.road.distanceTravelled = state.road.scroll;
+
+  const consumptionFailed = _applyRoadTravelConsumption(prevScroll, state.road.scroll, dt);
+  if (consumptionFailed) return;
 
   // конец пути?
   if (state.road.scroll >= state.road.distanceTotal) {
@@ -204,6 +264,7 @@ function updateRoad(dt) {
 
     state.currentPointIndex = state.road.toPoint;
     state.road.active = false;
+    state.road.consumptionPlan = null;
 
     if (state.currentPointIndex >= mapPoints.length - 1) {
       endSuccess();
@@ -292,7 +353,11 @@ function updateRoad(dt) {
     }
   }
 
-  if (typeof renderRoadScene === "function") renderRoadScene();
+  if (typeof renderRoadScene === "function") renderRoadScene(dt);
+  if (state.road && state.road._statsDirty) {
+    _maybeRenderStatsFromRoad();
+    state.road._statsDirty = false;
+  }
 }
 
 if (typeof window !== "undefined") {

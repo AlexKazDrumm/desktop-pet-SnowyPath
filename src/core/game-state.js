@@ -3,6 +3,94 @@
 /** @type {CharacterId} */
 let selectedCharacterId = "tourist";
 
+const STAT_KEYS = ["money", "fuel", "hunger", "fatigue"];
+const STAT_LOW_THRESHOLD = 26;
+const STAT_HIGH_THRESHOLD = 85;
+
+function _ensureStatFlashState() {
+  if (typeof stopHudState !== "object" || !stopHudState) return null;
+  stopHudState._statFlash = stopHudState._statFlash || {};
+  for (const k of STAT_KEYS) {
+    if (!stopHudState._statFlash[k]) {
+      stopHudState._statFlash[k] = { timer: 0, dir: 0 };
+    }
+  }
+  return stopHudState._statFlash;
+}
+
+function triggerStatFlash(deltas, durationSec) {
+  const sf = _ensureStatFlashState();
+  if (!sf) return;
+  const dur = typeof durationSec === "number" && durationSec > 0 ? durationSec : 1;
+  for (const k of STAT_KEYS) {
+    const dv = deltas && typeof deltas[k] === "number" ? deltas[k] : 0;
+    if (!dv) continue;
+    sf[k] = { timer: dur, dir: Math.sign(dv) || 0 };
+  }
+}
+
+function tickStatFlash(dt) {
+  const sf = _ensureStatFlashState();
+  if (!sf || !dt) return;
+  for (const k of STAT_KEYS) {
+    if (sf[k] && typeof sf[k].timer === "number" && sf[k].timer > 0) {
+      sf[k].timer = Math.max(0, sf[k].timer - dt);
+    }
+  }
+}
+
+function getStatColor(key, value) {
+  const v = typeof value === "number" ? value : 0;
+  let base = "#e5e7eb";
+  if (v < STAT_LOW_THRESHOLD) base = "#ef4444";
+  else if (v > STAT_HIGH_THRESHOLD) base = "#22c55e";
+
+  const sf = _ensureStatFlashState();
+  if (sf && sf[key] && sf[key].timer > 0) {
+    const dir = sf[key].dir || 0;
+    if (dir > 0) return "#22c55e";
+    if (dir < 0) return "#ef4444";
+  }
+
+  return base;
+}
+
+function applyStatDeltas({ fuel = 0, money = 0, hunger = 0, fatigue = 0 }, opts) {
+  const options = opts || {};
+  const prev = {
+    fuel: typeof state.fuel === "number" ? state.fuel : 0,
+    money: typeof state.money === "number" ? state.money : 0,
+    hunger: typeof state.hunger === "number" ? state.hunger : 0,
+    fatigue: typeof state.fatigue === "number" ? state.fatigue : 0
+  };
+
+  const applied = { fuel: 0, money: 0, hunger: 0, fatigue: 0 };
+
+  if (fuel !== 0) {
+    state.fuel += fuel;
+    applied.fuel = state.fuel - prev.fuel;
+  }
+  if (money !== 0) {
+    state.money += money;
+    applied.money = state.money - prev.money;
+  }
+  if (hunger !== 0) {
+    state.hunger = clamp(state.hunger + hunger, 0, 100);
+    applied.hunger = state.hunger - prev.hunger;
+  }
+  if (fatigue !== 0) {
+    state.fatigue = clamp(state.fatigue + fatigue, 0, 100);
+    applied.fatigue = state.fatigue - prev.fatigue;
+  }
+
+  if (!options.skipFlash) triggerStatFlash(applied, options.flashDuration || 1);
+  if (!options.skipRender && typeof renderStats === "function") {
+    renderStats();
+  }
+
+  return applied;
+}
+
 /**
  * Установить выбранного персонажа из меню
  * @param {CharacterId} id
@@ -109,28 +197,7 @@ const keysPressed = (typeof window !== "undefined")
  * Корректировка ресурсов
  */
 function adjustResources({ fuel = 0, money = 0, hunger = 0, fatigue = 0 }) {
-  state.fuel += fuel;
-  state.money += money;
-  state.hunger = clamp(state.hunger + hunger, 0, 100);
-  state.fatigue = clamp(state.fatigue + fatigue, 0, 100);
-
-  // Обновляем UI ресурсов
-  if (typeof renderStats === "function") {
-    renderStats();
-  }
-
-  // trigger temporary stat flash in HUD (if available)
-  try {
-    const dur = 1.0; // seconds
-    if (typeof stopHudState === "object" && stopHudState && stopHudState._statFlash) {
-      if (money !== 0) stopHudState._statFlash.money = { timer: dur, dir: Math.sign(money) || 1 };
-      if (fuel !== 0) stopHudState._statFlash.fuel = { timer: dur, dir: Math.sign(fuel) || 1 };
-      if (hunger !== 0) stopHudState._statFlash.hunger = { timer: dur, dir: Math.sign(hunger) || 1 };
-      if (fatigue !== 0) stopHudState._statFlash.fatigue = { timer: dur, dir: Math.sign(fatigue) || 1 };
-    }
-  } catch (e) {
-    console.error(e);
-  }
+  applyStatDeltas({ fuel, money, hunger, fatigue }, { flashDuration: 1 });
 }
 
 /**
@@ -142,4 +209,3 @@ function distanceFromToPoints(fromPointIndex, toPointIndex) {
   if (toPointIndex < fromPointIndex) return 0;
   return cumulativeDistances[toPointIndex] - cumulativeDistances[fromPointIndex];
 }
-

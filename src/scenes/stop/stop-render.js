@@ -621,18 +621,16 @@ function renderStopHub(dt) {
   const fontSize = Math.max(9, Math.floor(stage.cellSize * 0.16));
   const lineHeight = Math.max(11, Math.floor(stage.cellSize * 0.20));
   const padding = 4;
+  const statValues = {
+    money: typeof state.money === "number" ? state.money : 0,
+    fuel: typeof state.fuel === "number" ? state.fuel : 0,
+    hunger: typeof state.hunger === "number" ? state.hunger : 0,
+    fatigue: typeof state.fatigue === "number" ? state.fatigue : 0
+  };
+  const keyMap = ["money", "fuel", "hunger", "fatigue"];
 
   // decrement flash timers (if any)
-  try {
-    if (stopHudState && stopHudState._statFlash) {
-      const sf = stopHudState._statFlash;
-      for (const k of ["money", "fuel", "hunger", "fatigue"]) {
-        if (sf[k] && typeof sf[k].timer === "number" && sf[k].timer > 0) {
-          sf[k].timer = Math.max(0, sf[k].timer - dt);
-        }
-      }
-    }
-  } catch (e) { /* ignore */ }
+  if (typeof tickStatFlash === "function") tickStatFlash(dt || 0);
 
   ctx.save();
   ctx.beginPath();
@@ -649,16 +647,10 @@ function renderStopHub(dt) {
   for (let i = 0; i < statLines.length; i++) {
     const line = statLines[i] || "";
     let color = "#e5e7eb";
-    try {
-      if (stopHudState && stopHudState._statFlash) {
-        const keyMap = ["money", "fuel", "hunger", "fatigue"];
-        const key = keyMap[i];
-        if (key && stopHudState._statFlash[key] && stopHudState._statFlash[key].timer > 0) {
-          const dir = stopHudState._statFlash[key].dir || 0;
-          color = dir > 0 ? "#22c55e" : (dir < 0 ? "#ef4444" : "#e5e7eb");
-        }
-      }
-    } catch (e) { /* ignore */ }
+    const key = keyMap[i];
+    if (key && typeof getStatColor === "function") {
+      color = getStatColor(key, statValues[key]);
+    }
 
     ctx.fillStyle = color;
     ctx.fillText(line, x, y);

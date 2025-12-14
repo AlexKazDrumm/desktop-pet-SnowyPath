@@ -341,9 +341,7 @@ function handleHubInteract() {
       alert("Недостаточно денег на гостиницу.");
       return;
     }
-    state.money -= cost;
-    state.fatigue = 100;
-    state.hunger = clamp(state.hunger - 10, 0, 100);
+    adjustResources({ money: -cost, hunger: -10, fatigue: 100 - state.fatigue });
     if (checkFailConditions()) return;
     return;
   }
