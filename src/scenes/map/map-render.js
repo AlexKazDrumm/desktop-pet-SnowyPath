@@ -241,11 +241,11 @@ function renderMap(dt) {
   let topMidText = "";
   if (sel != null) {
     const locked = sel > cur + 1; // логика на 0-based
-    if (locked) topMidText = `Selected: ${selUi} (locked)`;
-    else if (sel === cur) topMidText = `Selected: ${selUi} (current)`;
-    else topMidText = `Selected: ${selUi} (available)`;
+    if (locked) topMidText = `Выбрано: ${selUi} (закрыто)`;
+    else if (sel === cur) topMidText = `Выбрано: ${selUi} (текущая)`;
+    else topMidText = `Выбрано: ${selUi} (доступна)`;
   } else {
-    topMidText = "Select a point to see distance";
+    topMidText = "Выберите точку, чтобы увидеть расстояние";
   }
 
   mapDrawTextInRect(ctx, topMidText, rTopMid, {
@@ -267,7 +267,7 @@ function renderMap(dt) {
   });
 
   mapDrawPanel(ctx, rMini);
-  mapDrawTextInRect(ctx, `Cur:\n${curUi}\nSel:\n${selUi == null ? "-" : selUi}`, rMini, {
+  mapDrawTextInRect(ctx, `Тек:\n${curUi}\nЦель:\n${selUi == null ? "-" : selUi}`, rMini, {
     fontSize: Math.max(9, Math.floor(stage.cellSize * 0.16)),
     color: "#e5e7eb",
     padding: 6,

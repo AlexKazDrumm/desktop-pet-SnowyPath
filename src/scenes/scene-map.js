@@ -33,7 +33,7 @@ function handleMapCanvasClick(clientX, clientY) {
 
   if (r.kind === "map_point" && r.payload && typeof r.payload.index === "number") {
     mapHudState.selectedPointIndex = r.payload.index;
-    showMapToast(`Selected point: ${r.payload.index + 1}`);
+    showMapToast(`Выбрана точка: ${r.payload.index + 1}`);
   }
 }
 
@@ -54,7 +54,7 @@ function tryStartTravelToSelected() {
   const sel = (typeof mapHudState.selectedPointIndex === "number") ? mapHudState.selectedPointIndex : null;
 
   if (sel == null) {
-    showMapToast("Select a point first");
+    showMapToast("Сначала выберите точку");
     return;
   }
 

@@ -559,7 +559,7 @@ function renderStopHub(dt) {
     const fuel = typeof state.fuel === "number" ? state.fuel : 0;
     const hunger = typeof state.hunger === "number" ? state.hunger : 0;
     const fatigue = typeof state.fatigue === "number" ? state.fatigue : 0;
-    stopHudState.statsText = `Money: ${money}\nFuel:  ${fuel}\nHungr: ${hunger}\nFatig: ${fatigue}`;
+    stopHudState.statsText = `Деньги: ${money}\nБензин: ${fuel}\nГолод: ${hunger}\nУсталость: ${fatigue}`;
   }
 
   // ===== draw HUD 16x2 =====

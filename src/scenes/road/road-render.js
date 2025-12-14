@@ -540,7 +540,7 @@ function renderRoadScene() {
     const fuel = Math.round(typeof state.fuel === "number" ? state.fuel : 0);
     const hunger = Math.round(typeof state.hunger === "number" ? state.hunger : 0);
     const fatigue = Math.round(typeof state.fatigue === "number" ? state.fatigue : 0);
-    window.stopHudState.statsText = `Money: ${money}\nFuel:  ${fuel}\nHungr: ${hunger}\nFatig: ${fatigue}`;
+    window.stopHudState.statsText = `Деньги: ${money}\nБензин: ${fuel}\nГолод: ${hunger}\nУсталость: ${fatigue}`;
 
     // controls text
     window.stopHudState.controlsText = window.stopHudState.controlsTextDefault || "";

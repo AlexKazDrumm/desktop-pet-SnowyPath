@@ -26,13 +26,13 @@ function buildMapStatsText() {
   const hunger = (typeof state.hunger === "number") ? state.hunger : 0;
   const fatigue = (typeof state.fatigue === "number") ? state.fatigue : 0;
   const canLine = (typeof hasCanister === "function" && hasCanister())
-    ? `Canis: ${typeof getCanisterFuel === "function" ? getCanisterFuel() : 0}/${typeof CANISTER_CAPACITY === "number" ? CANISTER_CAPACITY : 20}`
+    ? `Канистра: ${typeof getCanisterFuel === "function" ? getCanisterFuel() : 0}/${typeof CANISTER_CAPACITY === "number" ? CANISTER_CAPACITY : 20}`
     : null;
   let lines = [
-    `Money: ${money}`,
-    `Fuel:  ${fuel}`,
-    `Hungr: ${hunger}`,
-    `Fatig: ${fatigue}`
+    `Деньги:  ${money}`,
+    `Бензин:  ${fuel}`,
+    `Голод:   ${hunger}`,
+    `Усталость: ${fatigue}`
   ];
   if (canLine) lines.push(canLine);
   return lines.join("\n");
@@ -61,18 +61,18 @@ function computeRouteInfoText() {
   // UI: показываем точки 1..10
   const curUi = Math.max(1, Math.min(pointsCount, cur + 1));
 
-  let t = `Current: ${curUi}/${pointsCount}\n`;
-  t += `Passed:  ${curDist}\n`;
-  t += `Next:    ${nextSeg}\n`;
-  t += `Remain:  ${remain}`;
+  let t = `Текущая: ${curUi}/${pointsCount}\n`;
+  t += `Пройдено: ${curDist}\n`;
+  t += `Следующий: ${nextSeg}\n`;
+  t += `Осталось: ${remain}`;
 
   if (sel != null) {
     const safeSel = Math.max(0, Math.min(sel, pointsCount - 1));
     const selDist = (cum[safeSel] != null) ? (Number(cum[safeSel]) || 0) : 0;
     const delta = Math.max(0, selDist - curDist);
     const selUi = safeSel + 1;
-    t += `\nSel:     ${selUi}/${pointsCount}\n`;
-    t += `To sel:  ${delta}`;
+    t += `\nВыбрана: ${selUi}/${pointsCount}\n`;
+    t += `До точки: ${delta}`;
   }
 
   // (оставляем segmentsCount на всякий случай, если понадобится потом для дебага/баланса)

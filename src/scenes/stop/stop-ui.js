@@ -165,14 +165,14 @@ function buildStopStatsText() {
   const hunger = typeof state.hunger === "number" ? state.hunger : 0;
   const fatigue = typeof state.fatigue === "number" ? state.fatigue : 0;
   const canLine = (typeof hasCanister === "function" && hasCanister())
-    ? `Canis: ${typeof getCanisterFuel === "function" ? getCanisterFuel() : 0}/${typeof CANISTER_CAPACITY === "number" ? CANISTER_CAPACITY : 20}`
+    ? `Канистра: ${typeof getCanisterFuel === "function" ? getCanisterFuel() : 0}/${typeof CANISTER_CAPACITY === "number" ? CANISTER_CAPACITY : 20}`
     : null;
 
   let lines = [
-    `Money: ${money}`,
-    `Fuel:  ${fuel}`,
-    `Hungr: ${hunger}`,
-    `Fatig: ${fatigue}`
+    `Деньги:  ${money}`,
+    `Бензин:  ${fuel}`,
+    `Голод:   ${hunger}`,
+    `Усталость: ${fatigue}`
   ];
   if (canLine) lines.push(canLine);
   return lines.join("\n");
@@ -186,8 +186,7 @@ function renderStats() {
   try {
     const statsBar = (typeof qid === "function") ? qid("statsBar") : null;
     if (statsBar) {
-      // тут можно оставить эмодзи — это DOM, он нормально живёт
-      statsBar.textContent = `Money ${state.money} • Fuel ${state.fuel} • Hunger ${state.hunger} • Fatigue ${state.fatigue}`;
+      statsBar.textContent = `Деньги ${state.money} • Бензин ${state.fuel} • Голод ${state.hunger} • Усталость ${state.fatigue}`;
     }
 
     const stopStats = (typeof qid === "function") ? qid("stopStats") : null;

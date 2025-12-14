@@ -173,6 +173,15 @@ function getSelectedCharacterConfig() {
 function createInitialState() {
   const char = getSelectedCharacterConfig();
 
+  if (typeof stopUiInited !== "undefined") {
+    stopUiInited = false;
+  }
+  if (typeof stopHudState === "object" && stopHudState) {
+    stopHudState.playerAvatarSrc = "";
+    stopHudState.statsText = "";
+    stopHudState._lastStats = { money: null, fuel: null, hunger: null, fatigue: null };
+  }
+
   return {
     // Персонаж
     characterId: char.id,
