@@ -3,10 +3,27 @@
   "version": "0.1.0",
   "description": "MVP roadtrip game prototype (Electron)",
   "main": "main.js",
+  "private": true,
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.roadtrip.mvp",
+    "productName": "Roadtrip MVP",
+    "directories": {
+      "output": "dist"
+    },
+    "forceCodeSigning": false,
+    "win": {
+      "target": ["nsis", "portable"],
+      "signAndEditExecutable": false
+    }
   }
 }
