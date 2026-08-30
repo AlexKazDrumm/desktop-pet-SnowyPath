@@ -102,7 +102,7 @@
     avatar_worker: "assets/avatars/worker.png",
     avatar_forester: "assets/avatars/forester.png",
     avatar_mechanic: "assets/avatars/mechanic.png",
-    avatar_npc_instructor_gas: "assets/avatars/avatar_npc_instructor_gas.png",
+    avatar_npc_instructor_gas: "assets/avatars/hub0_avatar_npc_instructor_gas.png",
     // Автарки автостопщиков по id (используются и в дороге, и в HUD)
     hitchhiker_s1_h1: "assets/avatars/hitchhikers/s1_h1.png",
     hitchhiker_s1_h2: "assets/avatars/hitchhikers/s1_h2.png",
@@ -114,41 +114,6 @@
     hitchhiker_s2_h3: "assets/avatars/hitchhikers/s2_h3.png",
     hitchhiker_s2_h4: "assets/avatars/hitchhikers/s2_h4.png",
     hitchhiker_s2_h5: "assets/avatars/hitchhikers/s2_h5.png",
-    hitchhiker_s3_h1: "assets/avatars/hitchhikers/s3_h1.png",
-    hitchhiker_s3_h2: "assets/avatars/hitchhikers/s3_h2.png",
-    hitchhiker_s3_h3: "assets/avatars/hitchhikers/s3_h3.png",
-    hitchhiker_s3_h4: "assets/avatars/hitchhikers/s3_h4.png",
-    hitchhiker_s3_h5: "assets/avatars/hitchhikers/s3_h5.png",
-    hitchhiker_s4_h1: "assets/avatars/hitchhikers/s4_h1.png",
-    hitchhiker_s4_h2: "assets/avatars/hitchhikers/s4_h2.png",
-    hitchhiker_s4_h3: "assets/avatars/hitchhikers/s4_h3.png",
-    hitchhiker_s4_h4: "assets/avatars/hitchhikers/s4_h4.png",
-    hitchhiker_s4_h5: "assets/avatars/hitchhikers/s4_h5.png",
-    hitchhiker_s5_h1: "assets/avatars/hitchhikers/s5_h1.png",
-    hitchhiker_s5_h2: "assets/avatars/hitchhikers/s5_h2.png",
-    hitchhiker_s5_h3: "assets/avatars/hitchhikers/s5_h3.png",
-    hitchhiker_s5_h4: "assets/avatars/hitchhikers/s5_h4.png",
-    hitchhiker_s5_h5: "assets/avatars/hitchhikers/s5_h5.png",
-    hitchhiker_s6_h1: "assets/avatars/hitchhikers/s6_h1.png",
-    hitchhiker_s6_h2: "assets/avatars/hitchhikers/s6_h2.png",
-    hitchhiker_s6_h3: "assets/avatars/hitchhikers/s6_h3.png",
-    hitchhiker_s6_h4: "assets/avatars/hitchhikers/s6_h4.png",
-    hitchhiker_s6_h5: "assets/avatars/hitchhikers/s6_h5.png",
-    hitchhiker_s7_h1: "assets/avatars/hitchhikers/s7_h1.png",
-    hitchhiker_s7_h2: "assets/avatars/hitchhikers/s7_h2.png",
-    hitchhiker_s7_h3: "assets/avatars/hitchhikers/s7_h3.png",
-    hitchhiker_s7_h4: "assets/avatars/hitchhikers/s7_h4.png",
-    hitchhiker_s7_h5: "assets/avatars/hitchhikers/s7_h5.png",
-    hitchhiker_s8_h1: "assets/avatars/hitchhikers/s8_h1.png",
-    hitchhiker_s8_h2: "assets/avatars/hitchhikers/s8_h2.png",
-    hitchhiker_s8_h3: "assets/avatars/hitchhikers/s8_h3.png",
-    hitchhiker_s8_h4: "assets/avatars/hitchhikers/s8_h4.png",
-    hitchhiker_s8_h5: "assets/avatars/hitchhikers/s8_h5.png",
-    hitchhiker_s9_h1: "assets/avatars/hitchhikers/s9_h1.png",
-    hitchhiker_s9_h2: "assets/avatars/hitchhikers/s9_h2.png",
-    hitchhiker_s9_h3: "assets/avatars/hitchhikers/s9_h3.png",
-    hitchhiker_s9_h4: "assets/avatars/hitchhikers/s9_h4.png",
-    hitchhiker_s9_h5: "assets/avatars/hitchhikers/s9_h5.png",
 
     // Раньше было assets/avatars/avatar_car.png (его у тебя НЕТ)
     // Для HUD машины используем дефолтный.
@@ -194,6 +159,22 @@
     hub0_hubWork: "assets/poi/hub_work.png",
     hub0_hubBuilding: "assets/poi/hub_building.png"
   };
+
+  for (let segment = 3; segment <= 9; segment += 1) {
+    for (let index = 1; index <= 5; index += 1) {
+      spritePaths[`hitchhiker_s${segment}_h${index}`] = spritePaths.hitchhiker_avatar_default;
+    }
+  }
+
+  const themedTiles = [
+    "tile_snow", "tile_sidewalk", "tile_grass",
+    "road_straight", "road_corner", "road_t", "road_cross", "road_end"
+  ];
+  for (let hub = 1; hub <= 9; hub += 1) {
+    for (const tile of themedTiles) {
+      spritePaths[`hub${hub}_${tile}`] = `assets/tiles/hub${hub}/${tile}.png`;
+    }
+  }
 
   /** @type {Record<string, HTMLImageElement>} */
   const sprites = {};

@@ -1,29 +1,49 @@
 {
-  "name": "roadtrip-mvp",
-  "version": "0.1.0",
-  "description": "MVP roadtrip game prototype (Electron)",
+  "name": "snowy-path",
+  "version": "1.0.0",
+  "description": "Однопользовательская roadtrip-игра о зимнем путешествии и управлении ресурсами",
+  "author": "AlexKazDrumm",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
+    "check": "node scripts/check-project.js",
+    "test": "node --test",
+    "screenshot": "electron scripts/capture-screenshot.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^26.0.12"
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "com.roadtrip.mvp",
-    "productName": "Roadtrip MVP",
+    "appId": "dev.alexkazdrumm.snowypath",
+    "productName": "SnowyPath",
+    "artifactName": "SnowyPath-${version}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },
+    "files": [
+      "assets/**/*",
+      "src/**/*",
+      "styles/**/*",
+      "index.html",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
     "forceCodeSigning": false,
     "win": {
       "target": ["nsis", "portable"],
-      "signAndEditExecutable": false
+      "signExecutable": false
+    },
+    "nsis": {
+      "artifactName": "SnowyPath-Setup-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "SnowyPath-Portable-${version}-${arch}.${ext}"
     }
   }
 }

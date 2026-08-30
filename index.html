@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Roadtrip MVP</title>
+  <title>SnowyPath</title>
 
   <!-- Общие стили и компоненты -->
   <link rel="stylesheet" href="styles/base.css" />
@@ -232,87 +232,6 @@
           </div>
         </div>
       </section>
-<!-- STOP / HUB SCREEN -->
-      <section id="screen-stop" class="screen screen-stop hidden">
-        <button class="exit-btn exit-to-menu" type="button">Меню</button>
-        <canvas id="stopCanvas"></canvas>
-
-        <div class="stop-bottom-bar">
-          <div class="stop-hud-grid">
-            <div class="stop-hud-interact-avatar">
-              <div class="hud-avatar-wrap">
-                <img id="stopInteractAvatar" class="hud-avatar" alt="Объект" />
-              </div>
-            </div>
-
-            <div class="stop-hud-interact-text">
-              <div id="stopObjectTitle" class="stop-object-title"></div>
-              <div id="stopHint" class="hint"></div>
-            </div>
-
-            <div class="stop-hud-dialog">
-              <div id="stopDialog" class="stop-dialog hidden">
-                <div id="stopDialogText" class="stop-dialog-text"></div>
-                <div id="stopDialogChoices" class="stop-dialog-choices"></div>
-              </div>
-            </div>
-
-            <div class="stop-hud-center-bottom">
-              <div id="inventoryWrapper" class="inventory-wrapper">
-                <button id="btnToggleInventory" class="inventory-toggle" type="button">
-                  Инвентарь (I) ▾
-                </button>
-
-                <div id="inventoryPanel" class="inventory-panel"></div>
-              </div>
-
-              <div id="stopControls" class="stop-controls">
-                Управление: WASD / стрелки — ходьба • E — взаимодействие • M — карта • I — инвентарь
-              </div>
-            </div>
-
-            <div class="stop-hud-stats">
-              <div id="stopStats" class="stop-stats"></div>
-            </div>
-
-            <div class="stop-hud-player-avatar">
-              <div class="hud-avatar-wrap">
-                <img id="playerAvatar" class="hud-avatar" alt="Персонаж" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- MAP SCREEN -->
-      <section id="screen-map" class="screen screen-map hidden">
-        <button class="exit-btn exit-to-menu" type="button">Меню</button>
-        <canvas id="mapCanvas"></canvas>
-      </section>
-
-      <!-- ROAD SCREEN (только canvas, как stop/map) -->
-      <section id="screen-road" class="screen screen-road hidden">
-        <button class="exit-btn exit-to-menu" type="button">Меню</button>
-        <canvas id="roadCanvas"></canvas>
-      </section>
-
-      <!-- END -->
-      <section id="screen-end" class="screen hidden">
-        <h2 id="endTitle">Конец</h2>
-        <p id="endDescription"></p>
-        <button id="btnRestart" type="button">Начать заново</button>
-      </section>
-
-      <section id="screen-lose" class="screen hidden">
-        <div class="lose-grid">
-          <div class="lose-panel">
-            <h2 id="loseTitle">Плохая поездка</h2>
-            <p id="loseDescription"></p>
-            <p id="loseHint" class="lose-hint"></p>
-            <button id="btnLoseRestart" type="button">Попробовать снова</button>
-          </div>
-        </div>
-      </section>
     </main>
   </div>
 
@@ -346,6 +265,7 @@
   <script src="src/core/game-state.js"></script>
   <script src="src/core/game-canvas.js"></script>
   <script src="src/core/screens-core.js"></script>
+  <script src="src/core/game-rules.js"></script>
 
   <!-- STOP scene modules (must be BEFORE scene-stop.js) -->
   <script src="src/scenes/stop/stop-geometry.js"></script>

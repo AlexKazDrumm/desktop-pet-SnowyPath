@@ -5,9 +5,11 @@ const path = require("path");
 let mainWindow;
 
 function createWindow() {
+  const windowed = process.argv.includes("--windowed");
   mainWindow = new BrowserWindow({
-    fullscreen: true,
-    frame: false,
+    title: "SnowyPath",
+    fullscreen: !windowed,
+    frame: windowed,
     autoHideMenuBar: true,
     width: 1920,
     height: 1080, // 16:9
@@ -15,7 +17,9 @@ function createWindow() {
     minHeight: 720,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
     }
   });
 
@@ -23,6 +27,11 @@ function createWindow() {
   mainWindow.setAspectRatio(16 / 9);
 
   mainWindow.loadFile("index.html");
+
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith("file://")) event.preventDefault();
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
